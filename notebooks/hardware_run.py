@@ -85,7 +85,7 @@ def decode_results(results: dict[str, float], charlie_size: int, debbie_size: in
         else:
             decoded_results[setting] = results[setting]
             
-    return decoded_resGults
+    return decoded_results
 
 
 def double_expect(settings: list[Setting], results: dict) -> float:
@@ -356,15 +356,25 @@ def plot_results(
     ax.grid(True)
 
 
-# Parameters for all plots
-friend_sizes = range(1, 12)
-num_trials = 1
-shots = 10_000
-backend = qiskit.Aer.get_backend("aer_simulator")
+from qiskit_ibm_runtime import QiskitRuntimeService
 
-# Ideal simulator data
-noise_model = None
-simulator_results = run_experiment(
+IBM_PROVIDER_TOKEN="f93ccee55d555d956b5bd12641edb2b79f29c28235f064dccb3cfba3109d144271ce5a31fa05b26430abe31be8e87cf50f542cdf84abe3473c2f58fa7a1f56c5"
+
+# Save an IBM Quantum account and set it as your default account.
+QiskitRuntimeService.save_account(channel="ibm_quantum", token=IBM_PROVIDER_TOKEN, set_as_default=True, overwrite=True)
+
+# Load saved credentials
+service = QiskitRuntimeService()
+
+# Parameters for all plots
+friend_sizes = range(1, 10)
+num_trials = 10
+shots = 10_000
+
+# Mumbai hardware data
+backend = service.backend("ibmq_mumbai")
+noise_model = NoiseModel.from_backend(backend)
+mumbai_results = run_experiment(
     backend=backend,
     noise_model=noise_model,
     friend_sizes=friend_sizes,
@@ -373,6 +383,3 @@ simulator_results = run_experiment(
     verbose=True,
     save=True,
 )
-
-
-
