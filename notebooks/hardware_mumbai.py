@@ -240,22 +240,21 @@ def ewfs(alice_setting: Setting,
 
     return qc
 
-
 def save_data(
     results: dict,
     backend: Backend,
-    friend_sizes: int,
+    friend_sizes: list[int],
     num_trials: int,
     shots: int,
 ):
-    qubits = max(friend_sizes)
+    for friend_size in friend_sizes:
+        qubits = friend_size
+        output_file_name = f"{backend.name}_qubits_{qubits}_trial_{num_trials}_shots_{shots}.pickle"
+        output_path = os.path.join(DATA_PATH, output_file_name)
 
-    output_file_name = f"{backend.name}_qubits_{qubits}_trials_{num_trials}_shots_{shots}.pickle"
-    output_path = os.path.join(DATA_PATH, output_file_name)
-
-    print(f"Writing data to: {output_path}")
-    with open(output_path, "wb") as handle:    
-        pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        print(f"Writing data to: {output_path}")
+        with open(output_path, "wb") as handle:
+            pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 def compute_inequalities(results, verbose=False):
     A1B2 = double_expect((PEEK, REVERSE_1), results)
@@ -271,7 +270,6 @@ def compute_inequalities(results, verbose=False):
         print(f"{semi_brukner=} -- is violated: {semi_brukner > 0}")
         
     return {"semi_brukner": semi_brukner}
-
 
 def run_experiment(
     backend: Backend,
@@ -289,7 +287,7 @@ def run_experiment(
 
     for friend_size in friend_sizes:
         print(f"{friend_size=}")
-        for _ in range(num_trials):
+        for trial in range(num_trials):
             results = generate_all_experiments(
                 backend=backend,
                 noise_model=noise_model,
@@ -302,8 +300,9 @@ def run_experiment(
             violations = compute_inequalities(decode_results(results, charlie_size=friend_size, debbie_size=1), verbose=verbose)
             for key in violations:
                 all_results[friend_size][key].append(violations[key])
-    if save:
-        save_data(results=results, backend=backend, friend_sizes=friend_sizes, num_trials=num_trials, shots=shots)
+            # Save data after each trial of each friend_size
+            if save:
+                save_data(results=results, backend=backend, friend_sizes=[friend_size], num_trials=trial + 1, shots=shots)
     return all_results
 
 def plot_results(
