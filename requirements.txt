@@ -4,3 +4,4 @@ python-dotenv==1.0.0
 qiskit-ibm-runtime==0.16.1
 numpy==1.23.5
 ruff==0.1.7
+seaborn==0.13.2
