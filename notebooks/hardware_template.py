@@ -372,7 +372,7 @@ def compute_inequalities(results, verbose=False) -> dict[str, float]:
 #######################################################################################################################
 def run_experiment(
     backend: Backend,
-    backend_name: str
+    backend_name: str,
     noise_model: Optional[NoiseModel],
     friend_sizes: list[int],
     shots: int,
@@ -380,7 +380,6 @@ def run_experiment(
     verbose: bool = False,
     save: bool = False,
     optimize: bool = False,
-    data_path: str = DATA_PATH,
 ) -> dict:
     """Run the main experiment for a specified backend."""
     all_results = {
