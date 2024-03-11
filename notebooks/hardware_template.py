@@ -483,7 +483,7 @@ if __name__ == "__main__":
         backend=backend,
         noise_model=None,
         friend_sizes=friend_sizes,
-        num_trials=args.num_trials,
+        num_trials=args.trials,
         shots=args.shots,
         verbose=args.verbose,
         optimize=args.optimize,
