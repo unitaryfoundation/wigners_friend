@@ -159,12 +159,13 @@ def generate_all_experiments(
         circuits[(alice, bob)] = ewfs(alice, bob, angles, beta, charlie_size, debbie_size)
 
     if optimize:
-        circuits = transpile(
+        transpiled_circuits = transpile(
             list(circuits.values()),
             backend=backend,
             optimization_level=0,
             initial_layout=None,
         )
+        circuits = {key: circuit for key, circuit in zip(circuit.keys(), transpiled_circuits)}
 
     job = qiskit.execute(
         experiments=list(circuits.values()),
