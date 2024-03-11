@@ -372,10 +372,10 @@ def compute_inequalities(results, verbose=False) -> dict[str, float]:
 #######################################################################################################################
 def run_experiment(
     backend: Backend,
+    backend_name: str
     noise_model: Optional[NoiseModel],
     friend_sizes: list[int],
     shots: int,
-    backend_name: Optional[str] = None,
     num_trials: int = 1,
     verbose: bool = False,
     save: bool = False,
@@ -387,11 +387,9 @@ def run_experiment(
         fs: {inequality: [] for inequality in ["semi_brukner"]}
         for fs in friend_sizes
     }
-    if backend_name is None:
-        backend_name = backend.name()
 
+    # Create directory to save results.
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-
     new_dir_name = f"{backend_name}_{timestamp}"
     new_dir_path = os.path.join(DATA_PATH, new_dir_name)
 
@@ -414,10 +412,16 @@ def run_experiment(
             violations = compute_inequalities(decode_results(results, charlie_size=friend_size, debbie_size=1), verbose=verbose)
             for key in violations:
                 all_results[friend_size][key].append(violations[key])
+
             # Save data after each trial of each friend_size
             if save:
-                save_data(results=results, backend=backend, friend_sizes=[friend_size], num_trials=trial + 1, shots=shots, data_path=data_path, backend_name=backend_name)
-
+                save_data(results=results,
+                          backend=backend,
+                          friend_sizes=[friend_size],
+                          num_trials=trial + 1,
+                          shots=shots,
+                          data_path=new_dir_path,
+                          backend_name=backend_name)
     return all_results
 
 
@@ -498,6 +502,7 @@ if __name__ == "__main__":
 
     results = run_experiment(
         backend=backend,
+        backend_name=args.backend,
         noise_model=None,
         friend_sizes=friend_sizes,
         num_trials=args.trials,
