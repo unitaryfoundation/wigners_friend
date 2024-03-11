@@ -5,10 +5,13 @@ from typing import Optional
 import numpy as np
 import os
 import pickle
+
 from enum import Enum
+from collections import defaultdict
+from datetime import datetime
+
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
-from collections import defaultdict
 import seaborn as sns
 
 import qiskit
@@ -142,7 +145,7 @@ def double_expect(settings: tuple[int, int], results: dict) -> float:
 #######################################################################################################################
 def generate_all_experiments(
     backend: Backend,
-    noise_model: NoiseModel,
+    noise_model: Optional[NoiseModel],
     shots: int,
     angles: dict,
     beta: float,
@@ -309,7 +312,8 @@ def save_data(
     friend_sizes: list[int],
     num_trials: int,
     shots: int,
-    backend_name: Optional[str] = None
+    backend_name: Optional[str] = None,
+    data_path: str = DATA_PATH,
 ):
     """Writes data to a file name format of `<MACHINE_NAME>_qubits_<NUM_QUBITS>_trial_<NUM_TRIALS>_shots_<NUM_SHOTS>`."""
     if backend_name is None:
@@ -320,7 +324,7 @@ def save_data(
 
         # If not output file name is given, use this format.
         output_file_name = f"{backend_name}_qubits_{qubits}_trial_{num_trials}_shots_{shots}.pickle"
-        output_path = os.path.join(DATA_PATH, output_file_name)
+        output_path = os.path.join(data_path, output_file_name)
 
         print(f"Writing data to: {output_path}")
         with open(output_path, "wb") as handle:
@@ -376,12 +380,23 @@ def run_experiment(
     verbose: bool = False,
     save: bool = False,
     optimize: bool = False,
+    data_path: str = DATA_PATH,
 ) -> dict:
     """Run the main experiment for a specified backend."""
     all_results = {
         fs: {inequality: [] for inequality in ["semi_brukner"]}
         for fs in friend_sizes
     }
+    if backend_name is None:
+        backend_name = backend.name()
+
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+
+    new_dir_name = f"{backend_name}_{timestamp}"
+    new_dir_path = os.path.join(DATA_PATH, new_dir_name)
+
+    if not os.path.exists(new_dir_path):
+        os.makedirs(new_dir_path)
 
     for friend_size in friend_sizes:
         print(f"{friend_size=}")
@@ -401,7 +416,8 @@ def run_experiment(
                 all_results[friend_size][key].append(violations[key])
             # Save data after each trial of each friend_size
             if save:
-                save_data(results=results, backend=backend, friend_sizes=[friend_size], num_trials=trial + 1, shots=shots, backend_name=backend_name)
+                save_data(results=results, backend=backend, friend_sizes=[friend_size], num_trials=trial + 1, shots=shots, data_path=data_path, backend_name=backend_name)
+
     return all_results
 
 
