@@ -165,7 +165,7 @@ def generate_all_experiments(
             optimization_level=0,
             initial_layout=None,
         )
-        circuits = {key: circuit for key, circuit in zip(circuit.keys(), transpiled_circuits)}
+        circuits = {key: circuit for key, circuit in zip(circuits.keys(), transpiled_circuits)}
 
     job = qiskit.execute(
         experiments=list(circuits.values()),
