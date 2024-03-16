@@ -1,29 +1,25 @@
+#######################################################################################################################
+# IMPORTS
+#######################################################################################################################
 import argparse
-
 from typing import Optional
 
+from enum import Enum
+from datetime import datetime
+
+import random
 import numpy as np
 import os
 import pickle
 
-from enum import Enum
-from collections import defaultdict
-from datetime import datetime
-
-import matplotlib.pyplot as plt
-import matplotlib.lines as mlines
-import seaborn as sns
-
 import qiskit
-import qiskit_aer
 from qiskit_aer.noise import NoiseModel, depolarizing_error, pauli_error
 from qiskit.compiler import transpile
 from qiskit.providers import Backend
-from qiskit.providers import fake_provider
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit_ibm_runtime import QiskitRuntimeService
 
-DATA_PATH = os.path.join("..", "data", "majority_vote")
+DATA_PATH = os.path.join("..", "data")
 
 
 #######################################################################################################################
@@ -70,7 +66,7 @@ def bitflip_model(p: float) -> NoiseModel:
 
 
 #######################################################################################################################
-# CONSANTS
+# CONSTANTS
 #######################################################################################################################
 # Settings for extended Wigner's friend scenario.
 class Setting(Enum):
@@ -133,57 +129,13 @@ def decode_results(results: dict, charlie_size: int, debbie_size: int = 1) -> di
 
     return decoded_results
 
+
 def double_expect(settings: tuple[int, int], results: dict) -> float:
     """Expectation value of product of two operators."""
     probs = results[settings]
     # <AB> = P(00) - P(01) - P(10) + P(11)
     return probs.get("00", 0) - probs.get("01", 0) - probs.get("10", 0) + probs.get("11", 0)
 
-
-#######################################################################################################################
-# CONSIDER ALL EXPERIMENTAL SETTINGS
-#######################################################################################################################
-def generate_all_experiments(
-    backend: Backend,
-    noise_model: Optional[NoiseModel],
-    shots: int,
-    angles: dict,
-    beta: float,
-    charlie_size: int,
-    debbie_size: int,
-    optimize: bool = True
-) -> dict[tuple[int, int], list[float]]:
-    """Generate probabilitites for all combinations of experimental settings."""
-    all_experiment_combos = [[PEEK, REVERSE_1], [PEEK, REVERSE_2], [REVERSE_2, REVERSE_1], [REVERSE_2, REVERSE_2]]
-
-    results = {}
-    circuits = {}
-    for alice, bob in all_experiment_combos:
-        circuits[(alice, bob)] = ewfs(alice, bob, angles, beta, charlie_size, debbie_size)
-
-    if optimize:
-        transpiled_circuits = transpile(
-            list(circuits.values()),
-            backend=backend,
-            optimization_level=0,
-            initial_layout=None,
-        )
-        circuits = {key: circuit for key, circuit in zip(circuits.keys(), transpiled_circuits)}
-
-    job = qiskit.execute(
-        experiments=list(circuits.values()),
-        backend=backend,
-        noise_model=noise_model,
-        basis_gates=noise_model.basis_gates if noise_model is not None else None,
-        shots=shots,
-    )
-    counts = job.result().get_counts()
-
-    # Convert counts to probabilities.
-    for key, count in zip(circuits.keys(), counts):
-        probabilities = {k[::-1]: v / shots for k, v in count.items()}
-        results[key] = probabilities
-    return results
 
 #######################################################################################################################
 # STATE PREPARATION
@@ -219,6 +171,12 @@ def cnot_ladder(qc: QuantumCircuit, observer: int, friend_qubit: int, friend_siz
                 qc.cx(observer, friend_qubit + i)
 
 
+def cnot_ladder_random(qc: QuantumCircuit, observer: int, friend_qubit: int, friend_size: int):
+    """CNOT ladder circuit (GHZ without Hadamard) for random strategy."""
+    for i in range(friend_size):
+        qc.cx(observer, friend_qubit + i)
+
+
 #######################################################################################################################
 # CIRCUIT FOR EXTENDED WIGNER'S FRIEND SCENARIO
 #######################################################################################################################
@@ -226,7 +184,9 @@ def ewfs_rotation(qc: QuantumCircuit, qubit: int, angle: float):
     qc.rz(-angle, qubit)
     qc.h(qubit)
 
+
 def apply_setting(qc: QuantumCircuit,
+                  strategy: str,
                   observer: int,
                   setting: int,
                   angle: float,
@@ -235,11 +195,18 @@ def apply_setting(qc: QuantumCircuit,
                   friend_size: int):
     """Apply either the PEEK or REVERSE_1/REVERSE_2 settings."""
     if setting is PEEK:
-        # Ask friend for the outcome.
-        qc.measure(friend_qubits, observer_creg)
+        if strategy == "majority_vote":
+            # Ask friend for the outcome.
+            qc.measure(friend_qubits, observer_creg)
+        elif strategy == "random":
+            random_offset = random.randint(0, friend_size - 1)
+            qc.measure(friend_qubits[0] + random_offset, observer)
 
     elif setting in [REVERSE_1, REVERSE_2]:
-        cnot_ladder(qc, observer, friend_qubits[0], friend_size, reverse=True, internal_copy=True)
+        if strategy == "majority_vote":
+            cnot_ladder(qc, observer, friend_qubits[0], friend_size, reverse=True, internal_copy=True)
+        elif strategy == "random":
+            cnot_ladder_random(qc, observer, friend_qubits[0], friend_size)
 
         # For either REVERSE_1 or REVERSE_2, apply the appropriate angle rotations.
         # Note that in this case, the rotation should occur on the observer's qubit.
@@ -251,10 +218,16 @@ def apply_setting(qc: QuantumCircuit,
             qc.h(BOB)
             qc.rz((BETA - ANGLES[1]), BOB)
         ewfs_rotation(qc, observer, angle)
-        qc.measure(observer, observer_creg)
 
-def ewfs(alice_setting: int,
-        bob_setting: int,
+        if strategy == "majority_vote":
+            qc.measure(observer, observer_creg)
+        elif strategy == "random":
+            qc.measure(observer, observer)
+
+
+def ewfs(alice_setting: Setting,
+        bob_setting: Setting,
+        strategy: str,
         angles: list[float],
         beta: float,
         charlie_size: int,
@@ -268,16 +241,21 @@ def ewfs(alice_setting: int,
     alice, bob, charlie, debbie = [
         QuantumRegister(size, name=name) 
         for size, name in zip([alice_size, bob_size, charlie_size, debbie_size], 
-                              ["Alice", "Bob", "Charlie", "Debbie"])
+                              ["Alice's qubit", "Bob's qubit", "Charlie", "Debbie"])
     ]
-    if (alice_setting == PEEK and bob_setting != PEEK):
-        measurement = ClassicalRegister(charlie_size + 1, name="Measurement")
-        alice_creg = list(range(charlie_size))
-        bob_creg = charlie_size
-    else:
-        measurement = ClassicalRegister(meas_size, name="Measurement")
-        alice_creg = 0
-        bob_creg = 1
+
+    if strategy == "majority_vote":
+        if (alice_setting == PEEK and bob_setting != PEEK):
+            measurement = ClassicalRegister(charlie_size + 1, name="Measurement")
+            alice_creg = list(range(charlie_size))
+            bob_creg = charlie_size
+        else:
+            measurement = ClassicalRegister(meas_size, name="Measurement")
+            alice_creg = 0
+            bob_creg = 1
+    elif strategy == "random":
+        measurement = ClassicalRegister(sys_size, name="Measurement")
+        alice_creg, bob_creg = 0, 0
 
     # Create the Quantum Circuit with the defined registers
     qc = QuantumCircuit(alice, bob, charlie, debbie, measurement)
@@ -293,14 +271,25 @@ def ewfs(alice_setting: int,
     ewfs_rotation(qc, BOB, beta - angles[1])
 
     # Apply the CNOT ladder for Alice-Charlie and Bob-Debbie
-    cnot_ladder(qc, ALICE, charlie_qubits[0], charlie_size, reverse=False, internal_copy=True)
-    cnot_ladder(qc, BOB, debbie_qubits[0], debbie_size, reverse=False, internal_copy=True)
+    if strategy == "majority_vote":
+        cnot_ladder(qc, ALICE, charlie_qubits[0], charlie_size, reverse=False, internal_copy=True)
+        cnot_ladder(qc, BOB, debbie_qubits[0], debbie_size, reverse=False, internal_copy=True)
+    elif strategy == "random":
+        cnot_ladder_random(qc, ALICE, charlie_qubits[0], charlie_size)
+        cnot_ladder_random(qc, BOB, debbie_qubits[0], debbie_size)
 
     # Apply the settings for Alice/Charlie and Bob/Debbie
-    apply_setting(qc, ALICE, alice_setting, angles[alice_setting], alice_creg, charlie_qubits, charlie_size)
-    apply_setting(qc, BOB, bob_setting, (beta - angles[bob_setting]), bob_creg, debbie_qubits, debbie_size)
+    apply_setting(qc, strategy, ALICE, alice_setting, angles[alice_setting], alice_creg, charlie_qubits, charlie_size)
+    apply_setting(qc, strategy, BOB, bob_setting, (beta - angles[bob_setting]), bob_creg, debbie_qubits, debbie_size)
 
     return qc
+
+
+#######################################################################################################################
+# BRANCH FACTOR
+#######################################################################################################################
+def calculate_branch_factor(friend_size: int) -> float:
+    return np.ceil(friend_size / 2) - 1
 
 
 #######################################################################################################################
@@ -330,7 +319,15 @@ def save_data(
         with open(output_path, "wb") as handle:
             pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-def load_experiments(machine_name: str, friend_sizes: list[int], num_trials: int, shots: int, data_path: str = DATA_PATH) -> dict:
+
+def load_experiments(
+    machine_name: str,
+    friend_sizes: list[int],
+    num_trials: int,
+    shots: int,
+    strategy: str,
+    data_path: str = DATA_PATH,
+) -> dict:
     """Load experiments from multiple files."""
     all_results = {
         fs: {inequality: [] for inequality in ["semi_brukner"]}
@@ -341,7 +338,7 @@ def load_experiments(machine_name: str, friend_sizes: list[int], num_trials: int
         for trial in range(1, num_trials+1):
             with open(os.path.join(data_path, f"{machine_name}_qubits_{friend_size}_trial_{trial}_shots_{shots}.pickle"), "rb") as file:
                 results = pickle.load(file)
-            violations = compute_inequalities(decode_results(results, charlie_size=friend_size, debbie_size=1))
+            violations = compute_violations(results=results, charlie_size=friend_size, debbie_size=1, strategy=strategy)
             for key in violations:
                 all_results[friend_size][key].append(violations[key])
     return all_results
@@ -367,15 +364,91 @@ def compute_inequalities(results, verbose=False) -> dict[str, float]:
     return {"semi_brukner": semi_brukner}
 
 
+def compute_violations(results: dict, charlie_size: int, debbie_size: int, strategy: str, verbose: bool = False) -> dict[str, float]:
+    """Compute violation values based on strategy."""
+    if strategy == "random":
+        return compute_inequalities(results=results, verbose=verbose)
+    elif strategy == "majority_vote":
+        return compute_inequalities(decode_results(results=results, charlie_size=charlie_size, debbie_size=debbie_size), verbose=verbose)
+    raise ValueError(f"Strategy: {strategy} not defined.")
+
+
 #######################################################################################################################
 # EXPERIMENT
 #######################################################################################################################
-def run_experiment(
+def calculate_optimal_qubit_layout(backend_name: str, charlie_size: int) -> list[int]:
+    """Target qubits for a specific topology with a chain-like connectivity.
+
+    Function assumes that:
+        1. Alice and Bob each have a single qubit.
+        2. Debbie size is a single qubit.
+        3. Charlie size is bounded by len(charlie_qubits).
+    """
+    if backend_name == "ibmq_kolkata":
+        # Refer to the Kolkata coupling map configuration:
+        # https://quantum.ibm.com/services/resources?system=ibmq_kolkata
+        alice_bob_qubits = [4, 1]
+        debbie_qubits = [0]
+        charlie_qubits = [7, 10, 12, 15, 18, 21, 23, 24, 25, 26]
+        return alice_bob_qubits + charlie_qubits[:charlie_size] + debbie_qubits
+    else:
+        print(f"Backend {backend_name} not supported.")
+        return None
+
+
+def generate_all_experiments(
     backend: Backend,
     backend_name: str,
+    noise_model: NoiseModel,
+    shots: int,
+    strategy: str,
+    angles: dict,
+    beta: float,
+    charlie_size: int,
+    debbie_size: int,
+    optimize: bool = True
+) -> dict[tuple[Observer, Observer], list[float]]:
+    """Generate probabilitites for all combinations of experimental settings."""
+    all_experiment_combos = [[PEEK, REVERSE_1], [PEEK, REVERSE_2], [REVERSE_2, REVERSE_1], [REVERSE_2, REVERSE_2]]
+
+    results = {}
+    circuits = {}
+    for alice, bob in all_experiment_combos:
+        circuits[(alice, bob)] = ewfs(alice, bob, strategy, angles, beta, charlie_size, debbie_size)
+
+    if optimize:
+        initial_layout = calculate_optimal_qubit_layout(backend_name, charlie_size)
+        transpiled_circuits = transpile(
+            list(circuits.values()),
+            backend=backend,
+            optimization_level=0,
+            initial_layout=initial_layout,
+        )
+        circuits = {key: circuit for key, circuit in zip(circuits.keys(), transpiled_circuits)}
+
+    job = qiskit.execute(
+        experiments=list(circuits.values()),
+        backend=backend,
+        noise_model=noise_model,
+        basis_gates=noise_model.basis_gates if noise_model is not None else None,
+        shots=shots,
+    )
+    counts = job.result().get_counts()
+
+    # Convert counts to probabilities.
+    for key, count in zip(circuits.keys(), counts):
+        probabilities = {k[::-1]: v / shots for k, v in count.items()}
+        results[key] = probabilities
+    return results
+
+
+def run_experiment(
+    backend: Backend,
     noise_model: Optional[NoiseModel],
     friend_sizes: list[int],
     shots: int,
+    strategy: str,
+    backend_name: Optional[str] = None,
     num_trials: int = 1,
     verbose: bool = False,
     save: bool = False,
@@ -386,10 +459,12 @@ def run_experiment(
         fs: {inequality: [] for inequality in ["semi_brukner"]}
         for fs in friend_sizes
     }
+    if backend_name is None:
+        backend_name = backend.name
 
-    # Create directory to save results.
+    # Create timestamped directory to save results.
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    new_dir_name = f"{backend_name}_{timestamp}"
+    new_dir_name = f"{strategy}_{backend_name}_{timestamp}"
     new_dir_path = os.path.join(DATA_PATH, new_dir_name)
 
     if not os.path.exists(new_dir_path):
@@ -400,6 +475,7 @@ def run_experiment(
         for trial in range(num_trials):
             results = generate_all_experiments(
                 backend=backend,
+                backend_name=backend_name,
                 noise_model=noise_model,
                 shots=shots,
                 angles=ANGLES,
@@ -407,8 +483,9 @@ def run_experiment(
                 charlie_size=friend_size,
                 debbie_size=1,
                 optimize=optimize,
+                strategy=strategy,
             )
-            violations = compute_inequalities(decode_results(results, charlie_size=friend_size, debbie_size=1), verbose=verbose)
+            violations = compute_violations(results=results, charlie_size=friend_size, debbie_size=1, strategy=strategy, verbose=verbose)
             for key in violations:
                 all_results[friend_size][key].append(violations[key])
 
@@ -424,62 +501,9 @@ def run_experiment(
     return all_results
 
 
-def plot_results(
-    ax,
-    results: dict,
-    friend_sizes: list[int],
-    plot_title: str,
-    plot_error_bars: bool = False,
-    color: str = "tab:blue",
-    label: Optional[str] = None,
-    show_legend: bool = False,
-    marker: str = "o",
-    marker_size: float = 10,
-    line_width: float = 2.5,
-    y_min: Optional[float] = None,
-    y_max: Optional[float] = None,
-):
-    # Compute averages and standard deviations
-    avg_results = {}
-    std_results = {}
-    for fs in results:
-        avg_results[fs] = {}
-        std_results[fs] = {}
-        for key in results[fs]:
-            avg_results[fs][key] = np.mean(results[fs][key])
-            if plot_error_bars:
-                std_results[fs][key] = np.std(results[fs][key])
-
-    for _, key in enumerate(["semi_brukner"]):
-        means = [np.mean(results[fs][key]) for fs in friend_sizes]
-        errors = [np.std(results[fs][key]) for fs in friend_sizes] if plot_error_bars else None
-        ax.plot(
-            friend_sizes,
-            means,
-            label=label,
-            marker=marker,
-            markersize=marker_size,
-            linestyle="-",
-            linewidth=line_width,
-            color=color,
-        )
-        if plot_error_bars:
-            ax.errorbar(friend_sizes, means, yerr=errors, fmt="none", color=color, capsize=5, elinewidth=line_width)
-
-    ax.axhline(0.380364, color="tab:green", linestyle="dashed", label="_nolegend_", linewidth=line_width)
-    ax.axhline(0, color="tab:red", linestyle="dotted", label="_nolegend_", linewidth=line_width)
-
-    ax.set_xticks(friend_sizes)
-    ax.set_title(plot_title)
-    ax.grid(True)
-
-    if y_min is not None and y_max is not None:
-        ax.set_ylim(y_min, y_max)
-
-    if show_legend:
-        ax.legend()
-
-
+#######################################################################################################################
+# MAIN
+#######################################################################################################################
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extended Wigner's friend scenario (EWFS).")
     parser.add_argument("-backend", help="IBM hardware backend.", required=True, type=str)
@@ -488,6 +512,7 @@ if __name__ == "__main__":
     parser.add_argument("-friend_max", help="Max friend size", type=int, default=11)
     parser.add_argument("-optimize", help="Turn off optimization", type=bool, default=True)
     parser.add_argument("-verbose", help="Verbose output", type=bool, default=True)
+    parser.add_argument("-strategy", help="Strategy to use (random, majority vote, etc.)", required=True, type=str)
     parser.add_argument("-save", help="Save data", type=bool, default=True)
 
     args = parser.parse_args()
@@ -504,9 +529,11 @@ if __name__ == "__main__":
         backend_name=args.backend,
         noise_model=None,
         friend_sizes=friend_sizes,
+        strategy=args.strategy,
         num_trials=args.trials,
         shots=args.shots,
         verbose=args.verbose,
         optimize=args.optimize,
         save=args.save,
     )
+
