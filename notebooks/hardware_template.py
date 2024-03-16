@@ -376,7 +376,7 @@ def compute_violations(results: dict, charlie_size: int, debbie_size: int, strat
 #######################################################################################################################
 # EXPERIMENT
 #######################################################################################################################
-def calculate_optimal_qubit_layout(backend_name: str, charlie_size: int) -> list[int]:
+def calculate_optimal_qubit_layout(backend_name: str, charlie_size: int) -> Optional[list[int]]:
     """Target qubits for a specific topology with a chain-like connectivity.
 
     Function assumes that:
@@ -384,12 +384,15 @@ def calculate_optimal_qubit_layout(backend_name: str, charlie_size: int) -> list
         2. Debbie size is a single qubit.
         3. Charlie size is bounded by len(charlie_qubits).
     """
-    if backend_name == "ibmq_kolkata":
+    fake_27_qubit_names = ["fake_kolkata", "fake_mumbai", "fake_hanoi", "fake_cairo"]
+    real_27_qubit_names = ["ibmq_kolkata", "ibmq_mumbai", "ibm_hanoi", "ibm_cairo"]
+    # 27-qubit IBM devices have qubit architectures that are all consistently oriented and labeled.
+    if backend_name in fake_27_qubit_names or backend_name in real_27_qubit_names:
         # Refer to the Kolkata coupling map configuration:
         # https://quantum.ibm.com/services/resources?system=ibmq_kolkata
         alice_bob_qubits = [4, 1]
         debbie_qubits = [0]
-        charlie_qubits = [7, 10, 12, 15, 18, 21, 23, 24, 25, 26]
+        charlie_qubits = [7, 10, 12, 15, 18, 21, 23, 24, 25, 26, 22, 19, 20, 16]
         return alice_bob_qubits + charlie_qubits[:charlie_size] + debbie_qubits
     else:
         print(f"Backend {backend_name} not supported.")
