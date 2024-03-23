@@ -227,8 +227,8 @@ def apply_setting(qc: QuantumCircuit,
             qc.measure(observer, observer)
 
 
-def ewfs(alice_setting: Setting,
-        bob_setting: Setting,
+def ewfs(alice_setting: int,
+        bob_setting: int,
         strategy: str,
         angles: list[float],
         beta: float,
@@ -258,6 +258,8 @@ def ewfs(alice_setting: Setting,
     elif strategy == "random":
         measurement = ClassicalRegister(sys_size, name="Measurement")
         alice_creg, bob_creg = 0, 0
+    else:
+        raise ValueError(f"Strategy: {strategy} not defined.")
 
     # Create the Quantum Circuit with the defined registers
     qc = QuantumCircuit(alice, bob, charlie, debbie, measurement)
@@ -378,7 +380,7 @@ def compute_violations(results: dict, charlie_size: int, debbie_size: int, strat
 #######################################################################################################################
 # EXPERIMENT
 #######################################################################################################################
-def calculate_optimal_qubit_layout(backend_name: str, charlie_size: int) -> Optional[list[int]]:
+def calculate_optimal_qubit_layout(backend_name: Optional[str], charlie_size: int) -> Optional[list[int]]:
     """Target qubits for a specific topology with a chain-like connectivity.
 
     Function assumes that:
@@ -403,8 +405,8 @@ def calculate_optimal_qubit_layout(backend_name: str, charlie_size: int) -> Opti
 
 def generate_all_experiments(
     backend: Backend,
-    backend_name: str,
-    noise_model: NoiseModel,
+    backend_name: Optional[str],
+    noise_model: Optional[NoiseModel],
     shots: int,
     strategy: str,
     angles: dict,
@@ -424,7 +426,7 @@ def generate_all_experiments(
     # Define pass manager for optimizing over single-qubit gates.
     pm = PassManager()
     pm.append(Optimize1qGatesDecomposition(["u3", "u2", "u1"]))
-    
+
     # If optimize is True, we:
     # 1. Arrange the layout in a linear-like way depending on the architecture.
     # 2. Optimize single-qubit gate decompositions.
@@ -436,7 +438,7 @@ def generate_all_experiments(
             optimization_level=0,
             initial_layout=initial_layout,
         )
-        transpiled_circuits = pm.run(transpiled_circuits)            
+        transpiled_circuits = pm.run(transpiled_circuits)
     # Otherwise, we simply transpile the circuit without any optimizations.
     else:
         transpiled_circuits = transpile(
@@ -455,7 +457,7 @@ def generate_all_experiments(
                          basis_gates=noise_model.basis_gates if noise_model is not None else None,
                          shots=shots).result()
     # Convert counts to probabilities
-    for (key, circuit), count in zip(circuits.items(), result.get_counts()):
+    for (key, _), count in zip(circuits.items(), result.get_counts()):
         probabilities = {k[::-1]: v / shots for k, v in count.items()}
         results[key] = probabilities
 
