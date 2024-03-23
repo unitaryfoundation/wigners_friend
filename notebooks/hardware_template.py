@@ -532,9 +532,9 @@ if __name__ == "__main__":
     parser.add_argument("-shots", help="Number of shots", type=int, default=10_000)
     parser.add_argument("-trials", help="Number of trials", type=int, default=10)
     parser.add_argument("-friend_max", help="Max friend size", type=int, default=11)
-    parser.add_argument("-optimize", help="Turn off optimization", type=bool, default=True)
+    parser.add_argument("-optimize", help="Turn on optimization", type=bool, default=True)
     parser.add_argument("-verbose", help="Verbose output", type=bool, default=True)
-    parser.add_argument("-strategy", help="Strategy to use (random, majority vote, etc.)", required=True, type=str)
+    parser.add_argument("-strategy", help="Strategy to use (random, majority_vote, etc.)", required=True, type=str)
     parser.add_argument("-save", help="Save data", type=bool, default=True)
 
     args = parser.parse_args()

@@ -1,5 +1,7 @@
 qiskit
 qiskit-aer
-numpy==1.23.5
-seaborn==0.13.2
+numpy
+seaborn
 pylatexenc
+qiskit-ibm-runtime
+
