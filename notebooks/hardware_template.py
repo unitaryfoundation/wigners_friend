@@ -12,12 +12,14 @@ import numpy as np
 import os
 import pickle
 
-import qiskit
+from qiskit_aer import AerSimulator
+from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, transpile
 from qiskit_aer.noise import NoiseModel, depolarizing_error, pauli_error
-from qiskit.compiler import transpile
 from qiskit.providers import Backend
-from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit_ibm_runtime import QiskitRuntimeService
+from qiskit.transpiler import PassManager
+from qiskit.transpiler.passes import Optimize1qGatesDecomposition
+
 
 DATA_PATH = os.path.join("..", "data")
 
@@ -411,7 +413,7 @@ def generate_all_experiments(
     debbie_size: int,
     optimize: bool = True
 ) -> dict[tuple[Observer, Observer], list[float]]:
-    """Generate probabilitites for all combinations of experimental settings."""
+    """Generate probabilities for all combinations of experimental settings."""
     all_experiment_combos = [[PEEK, REVERSE_1], [PEEK, REVERSE_2], [REVERSE_2, REVERSE_1], [REVERSE_2, REVERSE_2]]
 
     results = {}
@@ -419,6 +421,13 @@ def generate_all_experiments(
     for alice, bob in all_experiment_combos:
         circuits[(alice, bob)] = ewfs(alice, bob, strategy, angles, beta, charlie_size, debbie_size)
 
+    # Define pass manager for optimizing over single-qubit gates.
+    pm = PassManager()
+    pm.append(Optimize1qGatesDecomposition(["u3", "u2", "u1"]))
+    
+    # If optimize is True, we:
+    # 1. Arrange the layout in a linear-like way depending on the architecture.
+    # 2. Optimize single-qubit gate decompositions.
     if optimize:
         initial_layout = calculate_optimal_qubit_layout(backend_name, charlie_size)
         transpiled_circuits = transpile(
@@ -427,21 +436,29 @@ def generate_all_experiments(
             optimization_level=0,
             initial_layout=initial_layout,
         )
-        circuits = {key: circuit for key, circuit in zip(circuits.keys(), transpiled_circuits)}
+        transpiled_circuits = pm.run(transpiled_circuits)            
+    # Otherwise, we simply transpile the circuit without any optimizations.
+    else:
+        transpiled_circuits = transpile(
+            list(circuits.values()),
+            optimization_level=0,
+            backend=backend
+        )
+    circuits = {key: circuit for key, circuit in zip(circuits.keys(), transpiled_circuits)}
 
-    job = qiskit.execute(
-        experiments=list(circuits.values()),
-        backend=backend,
-        noise_model=noise_model,
-        basis_gates=noise_model.basis_gates if noise_model is not None else None,
-        shots=shots,
-    )
-    counts = job.result().get_counts()
+    # Assuming the backend is AerSimulator if a noise model is provided
+    if noise_model:
+        backend = AerSimulator(noise_model=noise_model)
 
-    # Convert counts to probabilities.
-    for key, count in zip(circuits.keys(), counts):
+    result = backend.run(list(circuits.values()),
+                         noise_model=noise_model,
+                         basis_gates=noise_model.basis_gates if noise_model is not None else None,
+                         shots=shots).result()
+    # Convert counts to probabilities
+    for (key, circuit), count in zip(circuits.items(), result.get_counts()):
         probabilities = {k[::-1]: v / shots for k, v in count.items()}
         results[key] = probabilities
+
     return results
 
 
