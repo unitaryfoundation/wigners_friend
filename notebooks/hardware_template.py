@@ -422,7 +422,9 @@ def generate_all_experiments(
 
     # Define pass manager for optimizing over single-qubit gates.
     pm = PassManager()
-    pm.append(passes.Optimize1qGatesDecomposition(["u3", "u2", "u1"]))
+    #pm.append(passes.Optimize1qGatesDecomposition(["u3", "u2", "u1"]))
+    pm.append(passes.Optimize1qGatesDecomposition(["u", "u1", "u2", "u3", "p", "rx", "ry", "rz", "r", "sx", "x"]))
+
 
     # If optimize is True, we:
     # 1. Arrange the layout in a linear-like way depending on the architecture.
