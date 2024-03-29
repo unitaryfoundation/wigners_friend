@@ -446,14 +446,13 @@ def generate_all_experiments(
     circuits = {key: circuit for key, circuit in zip(circuits.keys(), transpiled_circuits)}
 
     # Assuming the backend is AerSimulator if a noise model is provided
-    if noise_model:
-        backend = AerSimulator(noise_model=noise_model)
+#    if noise_model:
+#        backend = AerSimulator(noise_model=noise_model)
 
     result = backend.run(list(circuits.values()),
-                         noise_model=noise_model,
-                         basis_gates=noise_model.basis_gates if noise_model is not None else None,
+                         #noise_model=noise_model,
+                         #basis_gates=noise_model.basis_gates if noise_model is not None else None,
                          shots=shots).result()
-
     # Convert counts to probabilities
     for (key, _), count in zip(circuits.items(), result.get_counts()):
         probabilities = {k[::-1]: v / shots for k, v in count.items()}
