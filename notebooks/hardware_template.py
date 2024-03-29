@@ -12,14 +12,12 @@ import numpy as np
 import os
 import pickle
 
-from qiskit_aer import AerSimulator
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, transpile
+from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel, depolarizing_error, pauli_error
 from qiskit.providers import Backend
 from qiskit_ibm_runtime import QiskitRuntimeService
-from qiskit.transpiler import PassManager
-from qiskit.transpiler.passes import Optimize1qGatesDecomposition
-
+from qiskit.transpiler import PassManager, CouplingMap, passes
 
 DATA_PATH = os.path.join("..", "data")
 
@@ -88,7 +86,7 @@ REVERSE_2 = Setting.REVERSE_2.value
 SETTINGS = [PEEK, REVERSE_1, REVERSE_2]
 
 # "Super"-observers (Alice and Bob).
-ALICE = Observer.ALICE.value 
+ALICE = Observer.ALICE.value
 BOB = Observer.BOB.value
 OBSERVERS = [ALICE, BOB]
 
@@ -380,7 +378,7 @@ def compute_violations(results: dict, charlie_size: int, debbie_size: int, strat
 #######################################################################################################################
 # EXPERIMENT
 #######################################################################################################################
-def calculate_optimal_qubit_layout(backend_name: Optional[str], charlie_size: int) -> Optional[list[int]]:
+def calculate_optimal_qubit_layout(backend_name: Optional[str], charlie_size: int) -> list[int]:
     """Target qubits for a specific topology with a chain-like connectivity.
 
     Function assumes that:
@@ -399,8 +397,7 @@ def calculate_optimal_qubit_layout(backend_name: Optional[str], charlie_size: in
         charlie_qubits = [7, 10, 12, 15, 18, 21, 23, 24, 25, 26, 22, 19, 20, 16]
         return alice_bob_qubits + charlie_qubits[:charlie_size] + debbie_qubits
     else:
-        print(f"Backend {backend_name} not supported.")
-        return None
+        raise ValueError(f"Backend {backend_name} not supported.")
 
 
 def generate_all_experiments(
@@ -425,7 +422,7 @@ def generate_all_experiments(
 
     # Define pass manager for optimizing over single-qubit gates.
     pm = PassManager()
-    pm.append(Optimize1qGatesDecomposition(["u3", "u2", "u1"]))
+    pm.append(passes.Optimize1qGatesDecomposition(["u3", "u2", "u1"]))
 
     # If optimize is True, we:
     # 1. Arrange the layout in a linear-like way depending on the architecture.
@@ -456,6 +453,7 @@ def generate_all_experiments(
                          noise_model=noise_model,
                          basis_gates=noise_model.basis_gates if noise_model is not None else None,
                          shots=shots).result()
+
     # Convert counts to probabilities
     for (key, _), count in zip(circuits.items(), result.get_counts()):
         probabilities = {k[::-1]: v / shots for k, v in count.items()}
@@ -530,11 +528,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extended Wigner's friend scenario (EWFS).")
     parser.add_argument("-backend", help="IBM hardware backend.", required=True, type=str)
     parser.add_argument("-shots", help="Number of shots", type=int, default=10_000)
-    parser.add_argument("-trials", help="Number of trials", type=int, default=10)
-    parser.add_argument("-friend_max", help="Max friend size", type=int, default=11)
+    parser.add_argument("-trials", help="Number of trials", type=int, default=1)
+    parser.add_argument("-friend_max", help="Max friend size", type=int, default=4)
     parser.add_argument("-optimize", help="Turn on optimization", type=bool, default=True)
     parser.add_argument("-verbose", help="Verbose output", type=bool, default=True)
-    parser.add_argument("-strategy", help="Strategy to use (random, majority_vote, etc.)", required=True, type=str)
+    parser.add_argument("-strategy", help="Strategy (random, majority_vote, etc.)", type=str, default="majority_vote")
     parser.add_argument("-save", help="Save data", type=bool, default=True)
 
     args = parser.parse_args()
@@ -544,18 +542,18 @@ if __name__ == "__main__":
     service = QiskitRuntimeService()
 
     backend = service.backend(args.backend)
+    noise_model = None
     friend_sizes = list(range(1, args.friend_max))
-
     results = run_experiment(
         backend=backend,
         backend_name=args.backend,
-        noise_model=None,
+        noise_model=noise_model,
         friend_sizes=friend_sizes,
-        strategy=args.strategy,
         num_trials=args.trials,
         shots=args.shots,
         verbose=args.verbose,
-        optimize=args.optimize,
         save=args.save,
+        optimize=args.optimize,
+        strategy=args.strategy,
     )
 
