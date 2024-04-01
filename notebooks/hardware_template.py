@@ -410,7 +410,7 @@ def generate_all_experiments(
     beta: float,
     charlie_size: int,
     debbie_size: int,
-    optimize: bool = True
+    optimize: bool = True,
 ) -> dict[tuple[Observer, Observer], list[float]]:
     """Generate probabilities for all combinations of experimental settings."""
     all_experiment_combos = [[PEEK, REVERSE_1], [PEEK, REVERSE_2], [REVERSE_2, REVERSE_1], [REVERSE_2, REVERSE_2]]
@@ -423,14 +423,20 @@ def generate_all_experiments(
     # Define pass manager for optimizing over single-qubit gates.
     pm = PassManager()
     #pm.append(passes.Optimize1qGatesDecomposition(["u3", "u2", "u1"]))
-    pm.append(passes.Optimize1qGatesDecomposition(["u", "u1", "u2", "u3", "p", "rx", "ry", "rz", "r", "sx", "x"]))
+    #pm.append(passes.Optimize1qGatesDecomposition(["u", "u1", "u2", "u3", "p", "rx", "ry", "rz", "r", "sx", "x"]))
+    pm.append(passes.Optimize1qGatesDecomposition(["u1", "u2", "u3"]))
 
 
     # If optimize is True, we:
     # 1. Arrange the layout in a linear-like way depending on the architecture.
     # 2. Optimize single-qubit gate decompositions.
     if optimize:
-        initial_layout = calculate_optimal_qubit_layout(backend_name, charlie_size)
+        #initial_layout = calculate_optimal_qubit_layout(backend_name, charlie_size)
+        alice_bob_qubits = [2, 1]
+        debbie_qubits = [0]
+        charlie_qubits = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        initial_layout = alice_bob_qubits + charlie_qubits[:charlie_size] + debbie_qubits
+
         transpiled_circuits = transpile(
             list(circuits.values()),
             backend=backend,
