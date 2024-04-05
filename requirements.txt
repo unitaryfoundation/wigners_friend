@@ -4,4 +4,6 @@ numpy
 seaborn
 pylatexenc
 qiskit-ibm-runtime
+matplotlib
+jupyter
 
