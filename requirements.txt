@@ -6,4 +6,5 @@ pylatexenc
 qiskit-ibm-runtime
 matplotlib
 jupyter
+qiskit-ionq>=0.5.1
 
