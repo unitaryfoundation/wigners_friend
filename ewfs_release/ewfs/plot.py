@@ -1,4 +1,5 @@
 import numpy as np
+from ewfs.ewfs import calculate_branch_factor
 
 
 def plot_results(
@@ -30,7 +31,7 @@ def plot_results(
 
     for _, key in enumerate(["semi_brukner"]):
         means = [np.mean(results[fs][key]) for fs in friend_sizes]
-        errors = [np.std(results[fs][key]) for fs in friend_sizes] if plot_error_bars else None
+        errors = [(2/np.sqrt(len(results[fs][key])))*np.std(results[fs][key]) for fs in friend_sizes] if plot_error_bars else None
         ax.plot(
             friend_sizes,
             means,
@@ -56,3 +57,14 @@ def plot_results(
 
     if show_legend:
         ax.legend()
+
+
+def add_branch_factor_axis(ax, friend_sizes, size="large"):
+    """Function to create the second x-axis for branch factor at the bottom."""
+    ax2 = ax.secondary_xaxis(-0.2)  # Place the second x-axis below the main one
+    branch_factors = [calculate_branch_factor(fs) for fs in friend_sizes]
+    ax2.set_xticks(friend_sizes)
+    ax2.set_xticklabels(branch_factors)
+    ax2.set_xlabel("Branch Factor", fontsize=size)
+    ax2.tick_params(axis="x", labelsize=size)
+    return ax2
