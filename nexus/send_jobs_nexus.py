@@ -31,7 +31,7 @@ args = parser.parse_args()
 # Experimental settings:
 shots = args.shots
 num_trials = args.trials
-friend_sizes = [args.friend_size]
+friend_size = args.friend_size
 strategy = "majority_vote"
 save = args.save
 
@@ -47,8 +47,8 @@ timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 new_dir_name = f"{strategy}_{backend_name}_{timestamp}"
 new_dir_path = os.path.join(DATA_PATH, new_dir_name)
 
-if not os.path.exists(new_dir_path):
-    os.makedirs(new_dir_path)
+# if not os.path.exists(new_dir_path):
+#     os.makedirs(new_dir_path)
 
 # Example of building a NexusBackend from a QuantinuumConfig
 configuration = QuantinuumConfig(device_name=backend_name, user_group="DEFAULT")
@@ -58,9 +58,11 @@ backend = NexusBackend(configuration, nexus_project)
 
 all_experiment_combos = [[PEEK, REVERSE_1], [PEEK, REVERSE_2], [REVERSE_2, REVERSE_1], [REVERSE_2, REVERSE_2]]
 
+execute_job_names = []
+
 def run_experiment(charlie_size, trial, all_experiment_combos, configuration, nexus_project, backend, shots, strategy, save, new_dir_path, backend_name):
-    results = {}
     qcs = []
+    cost = 0
     for setting in all_experiment_combos:
         # Create timestamped directory to save results.
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -74,19 +76,21 @@ def run_experiment(charlie_size, trial, all_experiment_combos, configuration, ne
         name=f"compile_job_charlie_size_{charlie_size}_{timestamp}",
         optimisation_level=0,
     )
-    print("sending for compile", setting)
+    print("sending for compile")
     nexus_compile_job.wait_for()
     print("got compile")
     
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     
     execute_job_name = f"execute_job_charlie_size_{charlie_size}_{timestamp}"
+    execute_job_names.append(execute_job_name)
 
     compiled_circuits = nexus_compile_job.get_compiled_circuits()
-    print("asking for cost")
-
-    cost = backend.cost(compiled_circuits[0], shots, 'H1-1SC')
-    print("Estimated Cost: ", cost)
+    # print("asking for cost")
+    # for c in compiled_circuits:
+    #     cost += backend.cost(c, shots, 'H1-1SC')
+        
+    # print("Estimated Cost: ", cost)
     
     nexus_execute_job = nexus_project.submit_execute_job(
         backend_config=configuration,
@@ -95,34 +99,31 @@ def run_experiment(charlie_size, trial, all_experiment_combos, configuration, ne
         name=execute_job_name,
     )
 
-    nexus_execute_job.wait_for()
+for trial in range(num_trials):
+    run_experiment(friend_size, trial, all_experiment_combos, configuration, nexus_project, backend, shots, strategy, save, new_dir_path, backend_name)
 
-    # wait days maybe
-    result = nexus_execute_job.get_results()
+import yaml
+import logging
 
-    for i, res in enumerate(result):
-        setting = all_experiment_combos[i]
-        probabilities = {''.join(map(str, k)): v / shots for k, v in dict(res.get_counts()).items()}
-        results[tuple(setting)] = probabilities
+yaml_dir = "executed_jobs_names"
+new_dir_path = os.path.join(DATA_PATH, yaml_dir)
 
-    violations = compute_violations(
-        results=results, 
-        charlie_size=charlie_size, 
-        debbie_size=1, 
-        strategy=strategy,
-        verbose=True,
-    )
-    print(f"Violations: {violations}\n")
+# Read existing YAML file
+try:
+    with open(new_dir_path + f'/friend_size_{friend_size}.yaml', 'r') as file:
+        data = yaml.safe_load(file)
+except Exception as e:
+    logging.error(f"no yaml file yet for this friend size: {e}. Creating new yaml file.")
+    data = {}
+    
+# Update fields as needed
+data['job_names'] = data.get('job_names', []) + execute_job_names
+data['shots'] = shots
+data['friend_size'] = friend_size
+data['backend_name'] = backend_name
+data['strategy'] = "majority_vote"
 
-    if save:
-        save_data(results=results,
-                  friend_size=charlie_size,
-                  trial=trial,
-                  shots=shots,
-                  data_path=new_dir_path,
-                  backend_name=backend_name)
-
-for charlie_size in friend_sizes:
-    for trial in range(num_trials):
-        run_experiment(charlie_size, trial, all_experiment_combos, configuration, nexus_project, backend, shots, strategy, save, new_dir_path, backend_name)
+# Write updated data back to the YAML file
+with open(new_dir_path + f'/friend_size_{friend_size}.yaml', 'w') as file:
+    yaml.dump(data, file, default_flow_style=False)
 
