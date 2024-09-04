@@ -31,7 +31,7 @@ def plot_results(
 
     for _, key in enumerate(["semi_brukner"]):
         means = [np.mean(results[fs][key]) for fs in friend_sizes]
-        errors = [(2/np.sqrt(len(results[fs][key])))*np.std(results[fs][key]) for fs in friend_sizes] if plot_error_bars else None
+        errors = [(3/np.sqrt(len(results[fs][key])))*np.std(results[fs][key]) for fs in friend_sizes] if plot_error_bars else None
         ax.plot(
             friend_sizes,
             means,
