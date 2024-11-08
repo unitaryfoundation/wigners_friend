@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "wf"
+version = "0.1.0"
+description = ""
+authors = ["vprusso <vincentrusso1@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+qiskit = "^1.2.4"
+matplotlib = "^3.9.2"
+qiskit-ibm-runtime = "^0.32.0"
+qiskit-aer = "^0.15.1"
+seaborn = "^0.13.2"
+toqito = "^1.1.0"
+ipykernel = "^6.29.5"
+jupyter = "^1.1.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
