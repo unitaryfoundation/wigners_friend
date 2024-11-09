@@ -1,40 +1,26 @@
-# wigners_friend
+# Extended Wigner's Friend Scenario (ewfs)
 
-Repository for the extended Wigner's friend experiment
+Supplemental code for [arXiv:X](XXX).
 
-## Configuration
+## Installation
 
-To install this project, one can run:
-
-```
-pip install -e .
-```
-
-Then, one can run the content in the `examples/` directory as, for instance:
+Python 3.12 or higher and [poetry](https://python-poetry.org/) is required. 
 
 ```
-python examples/run.py
+poetry install
 ```
 
-## Running on IBM hardware
+## Usage
 
-In order to run on IBM hardware, you will require an IBM account and a IBM API token. If you have an IBM Quantum
-account, you can obtain the API token [here](https://quantum.ibm.com/)
-
-You will then need to create a `.env` file in `wigners_friend/.env` where
+First, launch the virtual environment shell via poetry:
 
 ```
-IBM_PROVIDER_TOKEN="<IBM_TOKEN>"
+poetry shell
 ```
 
-where `<IBM_TOKEN>` is the token obtained from your IBM Quantum Platform account.
+Next, launch a local Jupyter notebook server.
 
-You will also need to set the `USE_HARDWARE = True` option in `config.py`.
 
-## Running on Qiskit Aer simulator
-
-Setting `USE_SIMULATOR = True` makes use of the Qiskit Aer simulator
-
-## Running on noisy simulator
-
-Setting `USE_NOISY_SIMULATOR = True` makes use of a noisy simulator based on a fake IBM device.
+```
+jupyter notebook
+```
