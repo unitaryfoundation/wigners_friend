@@ -1,7 +1,0 @@
-qiskit
-qiskit-aer
-numpy
-seaborn
-pylatexenc
-qiskit-ibm-runtime
-
