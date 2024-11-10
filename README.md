@@ -4,7 +4,8 @@ Supplemental code for [arXiv:X](https://arxiv.org/abs/2409.15302).
 
 ## Installation
 
-Python 3.12 or higher and [poetry](https://python-poetry.org/) is required. 
+You will require **Python 3.12** and [`poetry`](https://python-poetry.org/). **Note:** the
+newest Python version 3.13 is not yet supported due to the `qiskit-aer` dependency.
 
 ```
 poetry install
