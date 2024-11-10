@@ -1,6 +1,6 @@
 # Extended Wigner's Friend Scenario (ewfs)
 
-Supplemental code for [arXiv:X](https://arxiv.org/abs/2409.15302).
+Supplemental code for [arXiv:2409.15302](https://arxiv.org/abs/2409.15302).
 
 ## Installation
 
