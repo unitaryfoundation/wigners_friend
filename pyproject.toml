@@ -6,7 +6,7 @@ authors = ["vrusso <vincentrusso1@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "~3.12"
 qiskit = "^1.2.0"
 pylatexenc = "^2.10"
 seaborn = "^0.13.2"
