@@ -140,6 +140,7 @@ def apply_setting(qc: QuantumCircuit,
             qc.measure(friend_qubits[0] + random_offset, observer)
 
     elif setting in [REVERSE_1, REVERSE_2]:
+        qc.barrier(observer, friend_qubits)
         if strategy == "majority_vote":
             cnot_ladder(qc, observer, friend_qubits[0], friend_size, reverse=True, internal_copy=True)
         elif strategy == "random":
