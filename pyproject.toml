@@ -10,8 +10,9 @@ python = "~3.12"
 qiskit = "^1.2.0"
 pylatexenc = "^2.10"
 seaborn = "^0.13.2"
+notebook = "7.0.8"
 qiskit-aer = "^0.14.2"
-jupyter = "^1.0.0"
+jupyter = "^1.1.1"
 networkx = "^3.3"
 
 
