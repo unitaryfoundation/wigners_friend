@@ -136,7 +136,8 @@ def construct_ghz(
         visited_nodes_list, num_qubits
     )
     ghz = QuantumCircuit(num_qubits)
-    ghz.h(physical_to_virtual_map[start_qubit])
+    # UF: Commented this out as this Hadamard would be redudnant in the GHZ state.
+    #ghz.h(physical_to_virtual_map[start_qubit])
     for edge in visited_edges[0 : num_qubits - 1]:
         ghz.cx(physical_to_virtual_map[edge[0]], physical_to_virtual_map[edge[1]])
     if measure_all:
