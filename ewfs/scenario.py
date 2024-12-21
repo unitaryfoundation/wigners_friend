@@ -1,24 +1,16 @@
 """Extended Wigner's friend scenario (EWFS)" functionality."""
+from dataclasses import dataclass
 from enum import Enum
 import numpy as np
-import os
 import random
-from collections import defaultdict
-from datetime import datetime
 
-import qiskit
-import qiskit_aer
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-#from file_io import save_data
 from ewfs.circuit import (
     prepare_bipartite_system,
     cnot_ladder,
     cnot_ladder_random,
     ewfs_rotation,
 )
-
-
-DATA_PATH = os.path.join("../ewfs_release", "data")
 
 
 # Observers for scenario are Alice and Bob.
@@ -30,70 +22,6 @@ class Observer(Enum):
 # "Super"-observers (Alice and Bob).
 ALICE = Observer.ALICE.value
 BOB = Observer.BOB.value
-
-
-def compute_inequalities(results, verbose=False) -> dict[str, float]:
-    """Compute the semi-Brukner inequalities."""
-    A1B2 = double_expect(("peek", "reverse_1"), results)
-    A1B3 = double_expect(("peek", "reverse_2"), results)
-
-    A3B2 = double_expect(("reverse_2", "reverse_1"), results)
-    A3B3 = double_expect(("reverse_2", "reverse_2"), results)
-
-    # Eq. (18) from [1].
-    semi_brukner = -A1B2 + A1B3 - A3B2 - A3B3 - 2
-
-    if verbose:
-        print(f"{semi_brukner=} -- is violated: {semi_brukner > 0}")
-
-    return {"semi_brukner": semi_brukner}
-
-
-def compute_violations(results: dict, charlie_size: int, debbie_size: int, strategy: str, verbose: bool = False) -> dict[str, float]:
-    """Compute violation values based on strategy."""
-    if strategy == "random":
-        return compute_inequalities(results=results, verbose=verbose)
-    elif strategy == "majority_vote":
-        return compute_inequalities(decode_results(results=results, charlie_size=charlie_size, debbie_size=debbie_size), verbose=verbose)
-    raise ValueError(f"Strategy: {strategy} not defined.")
-
-
-def decode_results(results: dict, charlie_size: int, debbie_size: int = 1) -> dict[str, float]:
-    """Take majority vote of measurement bit-strings."""
-    decoded_results = {}
-
-    # For each setting, there is a dictionary of measurement results.
-    for setting in results:
-        if setting == ("peek", "reverse_1") or setting == ("peek", "reverse_2"):
-            # Debbie's size is 1 because no PEEK setting
-            debbie_size = 1
-
-            setting_results = {}
-            # Decode the keys for each measurement result of the setting.
-            for k, v in results[setting].items():
-                alice_friend, bob_friend = k[:charlie_size], k[-debbie_size:]
-
-                alice_zero_count, bob_zero_count = alice_friend.count("0"), bob_friend.count("0")
-
-                alice_decoding = "0" if alice_zero_count >= charlie_size // 2 + 1 else "1"
-                bob_decoding = "0" if bob_zero_count >= 1 else "1"
-
-                if alice_decoding + bob_decoding in setting_results.keys():
-                    setting_results[alice_decoding + bob_decoding] += v
-                else:
-                    setting_results[alice_decoding + bob_decoding] = v
-            decoded_results[setting] = setting_results
-        else:
-            decoded_results[setting] = results[setting]
-
-    return decoded_results
-
-
-def double_expect(settings: tuple[int, int], results: dict) -> float:
-    """Expectation value of product of two operators."""
-    probs = results[settings]
-    # <AB> = P(00) - P(01) - P(10) + P(11)
-    return probs.get("00", 0) - probs.get("01", 0) - probs.get("10", 0) + probs.get("11", 0)
 
 
 class EWFS:
@@ -137,7 +65,7 @@ class EWFS:
                                 ["Alice's qubit", "Bob's qubit", "Charlie", "Debbie"])
         ]
 
-        if strategy == "majority_vote":
+        if self.strategy == "majority_vote":
             if self.alice_setting == "peek" and self.bob_setting != "peek":
                 measurement = ClassicalRegister(self.charlie_size + 1, name="measurement")
                 alice_creg = list(range(self.charlie_size))
@@ -146,7 +74,7 @@ class EWFS:
                 measurement = ClassicalRegister(meas_size, name="measurement")
                 alice_creg = 0
                 bob_creg = 1
-        elif strategy == "random":
+        elif self.strategy == "random":
             measurement = ClassicalRegister(sys_size, name="measurement")
             alice_creg, bob_creg = 0, 0
 
@@ -164,10 +92,10 @@ class EWFS:
         ewfs_rotation(qc, BOB, self.beta - self.angles["peek"])
 
         # Apply the CNOT ladder for Alice-Charlie and Bob-Debbie
-        if strategy == "majority_vote":
+        if self.strategy == "majority_vote":
             cnot_ladder(qc, ALICE, charlie_qubits[0], self.charlie_size, reverse=False, internal_copy=True)
             cnot_ladder(qc, BOB, debbie_qubits[0], self.debbie_size, reverse=False, internal_copy=True)
-        elif strategy == "random":
+        elif self.strategy == "random":
             cnot_ladder_random(qc, ALICE, charlie_qubits[0], self.charlie_size)
             cnot_ladder_random(qc, BOB, debbie_qubits[0], self.debbie_size)
 
@@ -236,104 +164,70 @@ class EWFS:
                 qc.measure(observer, observer)
 
 
+def double_expect(counts: dict[str, float]) -> float:
+    """Expectation value of product of two operators."""
+    # <AB> = P(00) - P(01) - P(10) + P(11)
+    return counts.get("00", 0) - counts.get("01", 0) - counts.get("10", 0) + counts.get("11", 0)
 
-if __name__ == "__main__":
-    # Experimental settings:
-    shots = 10_000
-    num_trials = 2
-    friend_sizes = range(1, 3)
-    strategy = "majority_vote"
-    save = False
+def compute_inequalities(results, verbose=False) -> dict[str, float]:
+    """Compute the semi-Brukner inequalities."""
+    A1B2 = double_expect(results[("peek", "reverse_1")])
+    A1B3 = double_expect(results[("peek", "reverse_2")])
+    
+    A3B2 = double_expect(results[("reverse_2", "reverse_1")])
+    A3B3 = double_expect(results[("reverse_2", "reverse_2")])
+    
+    # A1B2 = double_expect(("peek", "reverse_1"), results)
+    # A1B3 = double_expect(("peek", "reverse_2"), results)
 
-    # Set backend and noise model:
-    backend_name = "aer_simulator"
-    backend = qiskit_aer.Aer.get_backend(backend_name)
-    noise_model = None
+    # A3B2 = double_expect(("reverse_2", "reverse_1"), results)
+    # A3B3 = double_expect(("reverse_2", "reverse_2"), results)
 
-    # Create timestamped directory to save results:
-    DATA_PATH = os.path.join("..", "data")
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    new_dir_name = f"{strategy}_{backend_name}_{timestamp}"
-    new_dir_path = os.path.join(DATA_PATH, new_dir_name)
+    # Eq. (18) from [1].
+    semi_brukner = -A1B2 + A1B3 - A3B2 - A3B3 - 2
 
-    if not os.path.exists(new_dir_path):
-        os.makedirs(new_dir_path)
+    if verbose:
+        print(f"{semi_brukner=} -- is violated: {semi_brukner > 0}")
 
-    all_experiment_combos = [
-        ["peek", "reverse_1"],
-        ["peek", "reverse_2"],
-        ["reverse_2", "reverse_1"],
-        ["reverse_2", "reverse_2"],
-    ]
+    return {"semi_brukner": semi_brukner}
 
-    # The tasks dictionary has a key that corresponds to the qubit
-    # system size with an associated value of the task for that size.
-    tasks = defaultdict(dict)
 
-    # Construct all circuits to be run over all qubit sizes.
-    for charlie_size in friend_sizes:
-        for trial in range(1, num_trials + 1):
-            circuits = {}
-        
-            # Create circuits for each EWFS setting.
-            # Note, we remove barriers in the Qiskit circuit.
-            for alice_setting, bob_setting in all_experiment_combos:
-                circuit = EWFS(
-                    alice_setting=alice_setting,
-                    bob_setting=bob_setting,
-                    strategy=strategy,
-                    charlie_size=charlie_size,
-                    debbie_size=1).circuit()
-                circuits[(alice_setting, bob_setting)] = circuit
-        
-            # Use backend to transpile circuits.
-            transpiled_circuits = {
-                k:  qiskit.transpile(circuit, backend, optimization_level=0)
-                for k, circuit in circuits.items()
-            }
-        
-            # Run task.
-            print(f"Trial {trial} out of {num_trials} for task of {charlie_size=}")
-            tasks[trial][charlie_size] = backend.run(
-                list(transpiled_circuits.values()),
-                shots=shots,
-                verbatim=True,
-            )
-            print(f"Task with task ID: {tasks[trial][charlie_size].job_id()}\n")
+def compute_violations(results: dict, charlie_size: int, debbie_size: int, strategy: str, verbose: bool = False) -> dict[str, float]:
+    """Compute violation values based on strategy."""
+    if strategy == "random":
+        return compute_inequalities(results=results, verbose=verbose)
+    elif strategy == "majority_vote":
+        return compute_inequalities(decode_results(results=results, charlie_size=charlie_size, debbie_size=debbie_size), verbose=verbose)
+    raise ValueError(f"Strategy: {strategy} not defined.")
 
-    results = {}
-    post_processed_results = {
-        fs: {inequality: [] for inequality in ["semi_brukner"]}
-        for fs in friend_sizes
-    }
-    for trial in tasks:
-        for charlie_size, task in tasks[trial].items():
-            print(f"Processing trial {trial} for task with task ID: {task.job_id()}")
 
-            result = task.result()
-            for key, count in zip(transpiled_circuits.keys(), result.get_counts()):
-                probabilities = {k[::-1]: v / shots for k, v in count.items()}
-                results[key] = probabilities
-            print(f"Results: {results}")
-        
-            # Compute violations from result counts.
-            violations = compute_violations(
-                results=results,
-                charlie_size=charlie_size,
-                debbie_size=1,
-                strategy=strategy,
-                verbose=True
-            )
-            print(f"Violations: {violations}\n")
-        
-            for key in violations:
-                post_processed_results[charlie_size][key].append(violations[key])
-        
-            # # Save data after each trial of each charlie_size.
-            # if save:
-            #     save_data(results=results,
-            #             friend_size=charlie_size,
-            #             trial=trial,
-            #             shots=shots,
-            #             data_path=new_dir_path,
-            #             backend_name=backend_name)
+def decode_results(results: dict, charlie_size: int, debbie_size: int = 1) -> dict[str, float]:
+    """Take majority vote of measurement bit-strings."""
+    decoded_results = {}
+
+    # For each setting, there is a dictionary of measurement results.
+    for setting in results:
+        if setting == ("peek", "reverse_1") or setting == ("peek", "reverse_2"):
+            # Debbie's size is 1 because no PEEK setting
+            debbie_size = 1
+
+            setting_results = {}
+            # Decode the keys for each measurement result of the setting.
+            for k, v in results[setting].items():
+                alice_friend, bob_friend = k[:charlie_size], k[-debbie_size:]
+
+                alice_zero_count, bob_zero_count = alice_friend.count("0"), bob_friend.count("0")
+
+                alice_decoding = "0" if alice_zero_count >= charlie_size // 2 + 1 else "1"
+                bob_decoding = "0" if bob_zero_count >= 1 else "1"
+
+                if alice_decoding + bob_decoding in setting_results.keys():
+                    setting_results[alice_decoding + bob_decoding] += v
+                else:
+                    setting_results[alice_decoding + bob_decoding] = v
+            decoded_results[setting] = setting_results
+        else:
+            decoded_results[setting] = results[setting]
+
+    return decoded_results
+
