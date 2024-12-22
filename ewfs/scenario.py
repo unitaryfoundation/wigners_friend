@@ -1,12 +1,10 @@
 """Extended Wigner's friend scenario (EWFS)" functionality."""
-from dataclasses import dataclass
 from enum import Enum
 import numpy as np
 import random
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from ewfs.circuit import (
-    prepare_bipartite_system,
     cnot_ladder,
     cnot_ladder_random,
     ewfs_rotation,
@@ -18,10 +16,18 @@ class Observer(Enum):
     ALICE = 0
     BOB = 1
 
-
 # "Super"-observers (Alice and Bob).
 ALICE = Observer.ALICE.value
 BOB = Observer.BOB.value
+
+# (Optimized) angles and beta term used for Alice and Bob measurement operators. Adapted from arXiv:1907.05607. Note
+# that despite the fact that degrees are used, we need to convert this to radians.
+DEFAULT_ANGLES = {
+    "peek": np.deg2rad(40),
+    "reverse_1": np.deg2rad(230),
+    "reverse_2": np.deg2rad(310),
+}
+DEFAULT_BETA = np.deg2rad(220)
 
 
 class EWFS:
@@ -35,93 +41,146 @@ class EWFS:
         angles: list[float] | None = None,
         beta: float | None = None,
     ) -> None:
+
+        # Settings for Alice and Bob.
         self.alice_setting = alice_setting
         self.bob_setting = bob_setting
 
-        if strategy not in ["majority_vote", "random"]:
-            raise ValueError(f"Strategy: {strategy} is not defined.")
+        # Strategy for the friend.
         self.strategy = strategy
 
         self.charlie_size = charlie_size
         self.debbie_size = debbie_size
 
-        self.angles = angles if angles else {
-            "peek": np.deg2rad(40),
-            "reverse_1": np.deg2rad(230),
-            "reverse_2": np.deg2rad(310),
-        }
-        self.beta = beta if beta else np.deg2rad(220)
+        self.angles = angles or DEFAULT_ANGLES
+        self.beta = beta or DEFAULT_BETA
+
+        self.alice_creg = None
+        self.bob_creg = None
+
+        self.charlie_qubits = None
+        self.debbie_qubits = None
+
+        self._validate()
 
     def circuit(self) -> QuantumCircuit:
         """Generate the circuit for extended Wigner's friend scenario."""
         # Define quantum registers
         alice_size, bob_size = 1, 1
+        alice, bob, charlie, debbie, measurement = self._initialize_measurement_registers(alice_size, bob_size)
+
+        # Create the Quantum Circuit with the defined registers
+        qc = QuantumCircuit(alice, bob, charlie, debbie, measurement)
+
+        self._prepare_bipartite_system(qc)
+        self._prepare_rotations(qc)
+        self._apply_cnot_ladders(qc)
+
+        # Apply the setting for Alice/Charlie.
+        self._apply_setting(
+            qc=qc, 
+            observer=ALICE,
+            setting=self.alice_setting,
+            angle=self.angles[self.alice_setting],
+            observer_creg=self.alice_creg,
+            friend_qubits=self.charlie_qubits,
+            friend_size=self.charlie_size
+        )
+        # Apply the setting for Bob/Debbie.
+        self._apply_setting(
+            qc=qc, 
+            observer=BOB,
+            setting=self.bob_setting,
+            angle=(self.beta - self.angles[self.bob_setting]),
+            observer_creg=self.bob_creg,
+            friend_qubits=self.debbie_qubits, 
+            friend_size=self.debbie_size
+        )
+
+        return qc
+
+    def _validate(self) -> None:
+        """Validate the settings for the EWFS scenario."""
+
+        # Validate the settings.
+        if self.alice_setting not in ["peek", "reverse_1", "reverse_2"]:
+            raise ValueError(f"Alice's setting: {self.alice_setting} is not defined.")
+        if self.bob_setting not in ["peek", "reverse_1", "reverse_2"]:
+            raise ValueError(f"Bob's setting: {self.bob_setting} is not defined.")
+
+        # Validate the strategy.
+        if self.strategy not in ["majority_vote", "random"]:
+            raise ValueError(f"Strategy: {self.strategy} is not defined.")
+
+        # Validate the sizes.
+        if self.charlie_size < 1:
+            raise ValueError(f"Charlie's size: {self.charlie_size} is invalid.")
+        if self.debbie_size < 1:
+            raise ValueError(f"Debbie's size: {self.debbie_size} is invalid.")  
+
+    def _initialize_measurement_registers(self, alice_size: int, bob_size: int) -> None:
+        """Initialize the classical measurement registers based on the strategy."""
         sys_size = alice_size + bob_size
         meas_size = 2
+
+        self.charlie_qubits = list(range(sys_size, (sys_size + self.charlie_size)))
+        self.debbie_qubits = list(range(sys_size + self.charlie_size, sys_size + (self.charlie_size + self.debbie_size)))
+
+        if self.strategy == "majority_vote":
+            if self.alice_setting == "peek" and self.bob_setting != "peek":
+                measurement = ClassicalRegister(self.charlie_size + 1, name="measurement")
+                self.alice_creg = list(range(self.charlie_size))
+                self.bob_creg = self.charlie_size
+            else:
+                measurement = ClassicalRegister(meas_size, name="measurement")
+                self.alice_creg, self.bob_creg = 0, 1
+
+        elif self.strategy == "random":
+            measurement = ClassicalRegister(sys_size, name="measurement")
+            self.alice_creg, self.bob_creg = 0, 0
 
         alice, bob, charlie, debbie = [
             QuantumRegister(size, name=name) 
             for size, name in zip([alice_size, bob_size, self.charlie_size, self.debbie_size], 
                                 ["Alice's qubit", "Bob's qubit", "Charlie", "Debbie"])
         ]
+        return alice, bob, charlie, debbie, measurement
 
+    def _prepare_bipartite_system(self, qc: QuantumCircuit) -> None:
+        """Generates the state: 1/sqrt(2) * (|01> - |10>)"""
+        qc.x(ALICE)
+        qc.x(BOB)
+        qc.h(ALICE)
+        qc.cx(ALICE, BOB)
+
+    def _prepare_rotations(self, qc: QuantumCircuit) -> None:
+        """Apply rotations for Alice and Bob based on their settings."""
+        self._ewfs_rotation(qc, ALICE, self.angles["peek"])
+        self._ewfs_rotation(qc, BOB, self.beta - self.angles["peek"])
+
+    def _apply_cnot_ladders(self, qc: QuantumCircuit) -> None:
+        """Apply the CNOT ladders based on the strategy."""
         if self.strategy == "majority_vote":
-            if self.alice_setting == "peek" and self.bob_setting != "peek":
-                measurement = ClassicalRegister(self.charlie_size + 1, name="measurement")
-                alice_creg = list(range(self.charlie_size))
-                bob_creg = self.charlie_size
-            else:
-                measurement = ClassicalRegister(meas_size, name="measurement")
-                alice_creg = 0
-                bob_creg = 1
+            cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size, reverse=False, internal_copy=True)
+            cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size, reverse=False, internal_copy=True)
         elif self.strategy == "random":
-            measurement = ClassicalRegister(sys_size, name="measurement")
-            alice_creg, bob_creg = 0, 0
+            cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size)
+            cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size)
 
-        # Create the Quantum Circuit with the defined registers
-        qc = QuantumCircuit(alice, bob, charlie, debbie, measurement)
+    def _apply_observer_rotation(self, qc: QuantumCircuit, observer: int, angle: float) -> None:
+        """Apply the observer rotation based on the setting."""
+        # For either REVERSE_1 or REVERSE_2, apply the appropriate angle rotations.
+        # Note that in this case, the rotation should occur on the observer's qubit.
+        if observer is ALICE:
+            qc.h(ALICE)
+            qc.rz(self.angles["peek"], ALICE)
 
-        charlie_qubits = list(range(sys_size, (sys_size + self.charlie_size)))
-        debbie_qubits = list(range(sys_size + self.charlie_size, sys_size + (self.charlie_size + self.debbie_size)))
+        if observer is BOB:
+            qc.h(BOB)
+            qc.rz((self.beta - self.angles["peek"]), BOB)
+        self._ewfs_rotation(qc, observer, angle)
 
-        # Prepare the bipartite quantum system
-        prepare_bipartite_system(qc, ALICE, BOB)
-
-        # Rotations for measurement.
-        ewfs_rotation(qc, ALICE, self.angles["peek"])
-        ewfs_rotation(qc, BOB, self.beta - self.angles["peek"])
-
-        # Apply the CNOT ladder for Alice-Charlie and Bob-Debbie
-        if self.strategy == "majority_vote":
-            cnot_ladder(qc, ALICE, charlie_qubits[0], self.charlie_size, reverse=False, internal_copy=True)
-            cnot_ladder(qc, BOB, debbie_qubits[0], self.debbie_size, reverse=False, internal_copy=True)
-        elif self.strategy == "random":
-            cnot_ladder_random(qc, ALICE, charlie_qubits[0], self.charlie_size)
-            cnot_ladder_random(qc, BOB, debbie_qubits[0], self.debbie_size)
-
-        # Apply the settings for Alice/Charlie and Bob/Debbie
-        self.apply_setting(
-            qc=qc, 
-            observer=ALICE,
-            setting=self.alice_setting,
-            angle=self.angles[self.alice_setting],
-            observer_creg=alice_creg,
-            friend_qubits=charlie_qubits,
-            friend_size=self.charlie_size
-        )
-        self.apply_setting(
-            qc=qc, 
-            observer=BOB,
-            setting=self.bob_setting,
-            angle=(self.beta - self.angles[self.bob_setting]),
-            observer_creg=bob_creg,
-            friend_qubits=debbie_qubits, 
-            friend_size=self.debbie_size
-        )
-
-        return qc
-
-    def apply_setting(
+    def _apply_setting(
             self, 
             qc: QuantumCircuit,
             observer: int,
@@ -142,26 +201,29 @@ class EWFS:
 
         elif setting in ["reverse_1", "reverse_2"]:
             qc.barrier(observer, friend_qubits)
+
             if self.strategy == "majority_vote":
                 cnot_ladder(qc, observer, friend_qubits[0], friend_size, reverse=True, internal_copy=True)
-            elif self.strategy == "random":
-                cnot_ladder_random(qc, observer, friend_qubits[0], friend_size)
-
-            # For either REVERSE_1 or REVERSE_2, apply the appropriate angle rotations.
-            # Note that in this case, the rotation should occur on the observer's qubit.
-            if observer is ALICE:
-                qc.h(ALICE)
-                qc.rz(self.angles["peek"], ALICE)
-
-            if observer is BOB:
-                qc.h(BOB)
-                qc.rz((self.beta - self.angles["peek"]), BOB)
-            ewfs_rotation(qc, observer, angle)
-
-            if self.strategy == "majority_vote":
+                self._apply_observer_rotation(qc, observer, angle)
                 qc.measure(observer, observer_creg)
+
             elif self.strategy == "random":
+                cnot_ladder(qc, observer, friend_qubits[0], friend_size)
+                self._apply_observer_rotation(qc, observer, angle)
                 qc.measure(observer, observer)
+
+    def _ewfs_rotation(self, qc: QuantumCircuit, qubit: int, angle: float) -> None:
+        """
+        Apply an EWFS-specific rotation to a qubit.
+
+        Args:
+            qc (QuantumCircuit): The quantum circuit to apply the rotation to.
+            qubit (int): The index of the qubit to rotate.
+            angle (float): The angle of rotation in radians.
+        """
+        qc.rz(-angle, qubit)
+        qc.h(qubit)
+
 
 
 def double_expect(counts: dict[str, float]) -> float:
@@ -177,12 +239,6 @@ def compute_inequalities(results, verbose=False) -> dict[str, float]:
     A3B2 = double_expect(results[("reverse_2", "reverse_1")])
     A3B3 = double_expect(results[("reverse_2", "reverse_2")])
     
-    # A1B2 = double_expect(("peek", "reverse_1"), results)
-    # A1B3 = double_expect(("peek", "reverse_2"), results)
-
-    # A3B2 = double_expect(("reverse_2", "reverse_1"), results)
-    # A3B3 = double_expect(("reverse_2", "reverse_2"), results)
-
     # Eq. (18) from [1].
     semi_brukner = -A1B2 + A1B3 - A3B2 - A3B3 - 2
 
