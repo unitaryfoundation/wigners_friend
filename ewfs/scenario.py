@@ -4,11 +4,7 @@ import numpy as np
 import random
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-from ewfs.circuit import (
-    cnot_ladder,
-    cnot_ladder_random,
-    ewfs_rotation,
-)
+from ewfs.circuit import cnot_ladder
 
 
 # Observers for scenario are Alice and Bob.
@@ -19,6 +15,8 @@ class Observer(Enum):
 # "Super"-observers (Alice and Bob).
 ALICE = Observer.ALICE.value
 BOB = Observer.BOB.value
+
+SETTINGS = ["peek", "reverse_1", "reverse_2"]
 
 # (Optimized) angles and beta term used for Alice and Bob measurement operators. Adapted from arXiv:1907.05607. Note
 # that despite the fact that degrees are used, we need to convert this to radians.
@@ -38,6 +36,8 @@ class EWFS:
         strategy: str,
         charlie_size: int,
         debbie_size: int,
+        alice_size: int = 1,
+        bob_size: int = 1,
         angles: list[float] | None = None,
         beta: float | None = None,
     ) -> None:
@@ -49,31 +49,40 @@ class EWFS:
         # Strategy for the friend.
         self.strategy = strategy
 
+        # Sizes of the qubit systems.
+        self.alice_size = alice_size
+        self.bob_size = bob_size
         self.charlie_size = charlie_size
         self.debbie_size = debbie_size
 
+        self.sys_size = self.alice_size + self.bob_size
+        self.meas_size = 2
+
+        # Angles for Alice and Bob measurements.
         self.angles = angles or DEFAULT_ANGLES
         self.beta = beta or DEFAULT_BETA
 
         self.alice_creg = None
         self.bob_creg = None
 
-        self.charlie_qubits = None
-        self.debbie_qubits = None
+        self.charlie_qubits = list(range(self.sys_size, (self.sys_size + self.charlie_size)))
+        self.debbie_qubits = list(range(self.sys_size + self.charlie_size, self.sys_size + (self.charlie_size + self.debbie_size)))
 
         self._validate()
 
     def circuit(self) -> QuantumCircuit:
         """Generate the circuit for extended Wigner's friend scenario."""
         # Define quantum registers
-        alice_size, bob_size = 1, 1
-        alice, bob, charlie, debbie, measurement = self._initialize_measurement_registers(alice_size, bob_size)
+        alice, bob, charlie, debbie, measurement = self._initialize_measurement_registers()
 
         # Create the Quantum Circuit with the defined registers
         qc = QuantumCircuit(alice, bob, charlie, debbie, measurement)
 
+        # Prepare the bipartite system for the observers (Alice and Bob).
         self._prepare_bipartite_system(qc)
         self._prepare_rotations(qc)
+
+        # Apply the CNOT ladders based on the strategy.
         self._apply_cnot_ladders(qc)
 
         # Apply the setting for Alice/Charlie.
@@ -103,9 +112,9 @@ class EWFS:
         """Validate the settings for the EWFS scenario."""
 
         # Validate the settings.
-        if self.alice_setting not in ["peek", "reverse_1", "reverse_2"]:
+        if self.alice_setting not in SETTINGS:
             raise ValueError(f"Alice's setting: {self.alice_setting} is not defined.")
-        if self.bob_setting not in ["peek", "reverse_1", "reverse_2"]:
+        if self.bob_setting not in SETTINGS:
             raise ValueError(f"Bob's setting: {self.bob_setting} is not defined.")
 
         # Validate the strategy.
@@ -118,31 +127,27 @@ class EWFS:
         if self.debbie_size < 1:
             raise ValueError(f"Debbie's size: {self.debbie_size} is invalid.")  
 
-    def _initialize_measurement_registers(self, alice_size: int, bob_size: int) -> None:
+    def _initialize_measurement_registers(self) -> None:
         """Initialize the classical measurement registers based on the strategy."""
-        sys_size = alice_size + bob_size
-        meas_size = 2
-
-        self.charlie_qubits = list(range(sys_size, (sys_size + self.charlie_size)))
-        self.debbie_qubits = list(range(sys_size + self.charlie_size, sys_size + (self.charlie_size + self.debbie_size)))
-
         if self.strategy == "majority_vote":
             if self.alice_setting == "peek" and self.bob_setting != "peek":
                 measurement = ClassicalRegister(self.charlie_size + 1, name="measurement")
                 self.alice_creg = list(range(self.charlie_size))
                 self.bob_creg = self.charlie_size
             else:
-                measurement = ClassicalRegister(meas_size, name="measurement")
+                measurement = ClassicalRegister(self.meas_size, name="measurement")
                 self.alice_creg, self.bob_creg = 0, 1
 
         elif self.strategy == "random":
-            measurement = ClassicalRegister(sys_size, name="measurement")
+            measurement = ClassicalRegister(self.sys_size, name="measurement")
             self.alice_creg, self.bob_creg = 0, 0
 
         alice, bob, charlie, debbie = [
             QuantumRegister(size, name=name) 
-            for size, name in zip([alice_size, bob_size, self.charlie_size, self.debbie_size], 
-                                ["Alice's qubit", "Bob's qubit", "Charlie", "Debbie"])
+            for size, name in zip(
+                [self.alice_size, self.bob_size, self.charlie_size, self.debbie_size], 
+                ["Alice's qubit", "Bob's qubit", "Charlie", "Debbie"]
+            )
         ]
         return alice, bob, charlie, debbie, measurement
 
@@ -213,77 +218,6 @@ class EWFS:
                 qc.measure(observer, observer)
 
     def _ewfs_rotation(self, qc: QuantumCircuit, qubit: int, angle: float) -> None:
-        """
-        Apply an EWFS-specific rotation to a qubit.
-
-        Args:
-            qc (QuantumCircuit): The quantum circuit to apply the rotation to.
-            qubit (int): The index of the qubit to rotate.
-            angle (float): The angle of rotation in radians.
-        """
+        """Apply an EWFS-specific rotation to a qubit."""
         qc.rz(-angle, qubit)
         qc.h(qubit)
-
-
-
-def double_expect(counts: dict[str, float]) -> float:
-    """Expectation value of product of two operators."""
-    # <AB> = P(00) - P(01) - P(10) + P(11)
-    return counts.get("00", 0) - counts.get("01", 0) - counts.get("10", 0) + counts.get("11", 0)
-
-def compute_inequalities(results, verbose=False) -> dict[str, float]:
-    """Compute the semi-Brukner inequalities."""
-    A1B2 = double_expect(results[("peek", "reverse_1")])
-    A1B3 = double_expect(results[("peek", "reverse_2")])
-    
-    A3B2 = double_expect(results[("reverse_2", "reverse_1")])
-    A3B3 = double_expect(results[("reverse_2", "reverse_2")])
-    
-    # Eq. (18) from [1].
-    semi_brukner = -A1B2 + A1B3 - A3B2 - A3B3 - 2
-
-    if verbose:
-        print(f"{semi_brukner=} -- is violated: {semi_brukner > 0}")
-
-    return {"semi_brukner": semi_brukner}
-
-
-def compute_violations(results: dict, charlie_size: int, debbie_size: int, strategy: str, verbose: bool = False) -> dict[str, float]:
-    """Compute violation values based on strategy."""
-    if strategy == "random":
-        return compute_inequalities(results=results, verbose=verbose)
-    elif strategy == "majority_vote":
-        return compute_inequalities(decode_results(results=results, charlie_size=charlie_size, debbie_size=debbie_size), verbose=verbose)
-    raise ValueError(f"Strategy: {strategy} not defined.")
-
-
-def decode_results(results: dict, charlie_size: int, debbie_size: int = 1) -> dict[str, float]:
-    """Take majority vote of measurement bit-strings."""
-    decoded_results = {}
-
-    # For each setting, there is a dictionary of measurement results.
-    for setting in results:
-        if setting == ("peek", "reverse_1") or setting == ("peek", "reverse_2"):
-            # Debbie's size is 1 because no PEEK setting
-            debbie_size = 1
-
-            setting_results = {}
-            # Decode the keys for each measurement result of the setting.
-            for k, v in results[setting].items():
-                alice_friend, bob_friend = k[:charlie_size], k[-debbie_size:]
-
-                alice_zero_count, bob_zero_count = alice_friend.count("0"), bob_friend.count("0")
-
-                alice_decoding = "0" if alice_zero_count >= charlie_size // 2 + 1 else "1"
-                bob_decoding = "0" if bob_zero_count >= 1 else "1"
-
-                if alice_decoding + bob_decoding in setting_results.keys():
-                    setting_results[alice_decoding + bob_decoding] += v
-                else:
-                    setting_results[alice_decoding + bob_decoding] = v
-            decoded_results[setting] = setting_results
-        else:
-            decoded_results[setting] = results[setting]
-
-    return decoded_results
-
