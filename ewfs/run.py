@@ -1,3 +1,5 @@
+"""Run EWFS experiment."""
+
 import itertools
 from collections import defaultdict
 import qiskit

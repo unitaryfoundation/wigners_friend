@@ -73,7 +73,10 @@ class EWFS:
 
         # Prepare the bipartite system for the observers (Alice and Bob).
         self._prepare_bipartite_system(qc)
-        self._prepare_rotations(qc)
+
+        # Perform the rotations for Alice and Bob based on their settings.
+        self._ewfs_rotation(qc, ALICE, self.angles["peek"])
+        self._ewfs_rotation(qc, BOB, self.beta - self.angles["peek"])
 
         # Apply the CNOT ladders based on the strategy.
         self._apply_cnot_ladders(qc)
@@ -147,11 +150,6 @@ class EWFS:
         qc.h(ALICE)
         qc.cx(ALICE, BOB)
 
-    def _prepare_rotations(self, qc: QuantumCircuit) -> None:
-        """Apply rotations for Alice and Bob based on their settings."""
-        self._ewfs_rotation(qc, ALICE, self.angles["peek"])
-        self._ewfs_rotation(qc, BOB, self.beta - self.angles["peek"])
-
     def _apply_cnot_ladders(self, qc: QuantumCircuit) -> None:
         """Apply the CNOT ladders based on the strategy."""
         if self.strategy == "majority_vote":
@@ -160,19 +158,6 @@ class EWFS:
         elif self.strategy == "random":
             cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size)
             cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size)
-
-    def _apply_observer_rotation(self, qc: QuantumCircuit, observer: int, angle: float) -> None:
-        """Apply the observer rotation based on the setting."""
-        # For either REVERSE_1 or REVERSE_2, apply the appropriate angle rotations.
-        # Note that in this case, the rotation should occur on the observer's qubit.
-        if observer is ALICE:
-            qc.h(ALICE)
-            qc.rz(self.angles["peek"], ALICE)
-
-        if observer is BOB:
-            qc.h(BOB)
-            qc.rz((self.beta - self.angles["peek"]), BOB)
-        self._ewfs_rotation(qc, observer, angle)
 
     def _apply_setting(
             self, 
@@ -201,17 +186,32 @@ class EWFS:
     def _apply_reverse(self, qc: QuantumCircuit, observer: int, observer_creg: int, friend_qubits: list[int], friend_size: int, angle: float) -> None:
         qc.barrier(observer, friend_qubits)
 
+        # Apply the CNOT ladder based on the strategy.
         if self.strategy == "majority_vote":
             cnot_ladder(qc, observer, friend_qubits[0], friend_size, reverse=True, internal_copy=True)
-            self._apply_observer_rotation(qc, observer, angle)
-            qc.measure(observer, observer_creg)
-
         elif self.strategy == "random":
             cnot_ladder(qc, observer, friend_qubits[0], friend_size)
-            self._apply_observer_rotation(qc, observer, angle)
+
+        # Apply the rotation based on the observer.
+        if observer is ALICE:
+            self._ewfs_rotation(qc, observer, self.angles["peek"], invert=False)
+        if observer is BOB:
+            self._ewfs_rotation(qc, observer, self.beta - self.angles["peek"], invert=False)
+
+        # Apply a rotation.
+        self._ewfs_rotation(qc, observer, angle)
+
+        # Apply the measurement based on the strategy.
+        if self.strategy == "majority_vote":
+            qc.measure(observer, observer_creg)
+        elif self.strategy == "random":
             qc.measure(observer, observer)
 
-    def _ewfs_rotation(self, qc: QuantumCircuit, qubit: int, angle: float) -> None:
+    def _ewfs_rotation(self, qc: QuantumCircuit, observer: int, angle: float, invert: bool = True) -> None:
         """Apply an EWFS-specific rotation to a qubit."""
-        qc.rz(-angle, qubit)
-        qc.h(qubit)
+        if invert:
+            qc.rz(-angle, observer)
+            qc.h(observer)
+        else:
+            qc.h(observer)
+            qc.rz(angle, observer)

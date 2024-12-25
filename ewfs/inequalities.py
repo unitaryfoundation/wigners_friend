@@ -1,3 +1,5 @@
+"""Local friendliness Bell-like iinequalities for EWFS."""
+
 from ewfs.scenario import ALICE, BOB, SETTINGS
 
 

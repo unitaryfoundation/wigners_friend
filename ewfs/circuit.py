@@ -1,7 +1,15 @@
+"""This module contains utility functions for constructing quantum circuits.""" 
 from qiskit import QuantumCircuit
 
 
-def cnot_ladder(qc: QuantumCircuit, observer: int, friend_qubit: int, friend_size: int, reverse: bool = False, internal_copy: bool = False):
+def cnot_ladder(
+    qc: QuantumCircuit, 
+    observer: int,
+    friend_qubit: int,
+    friend_size: int, 
+    reverse: bool = False,
+    internal_copy: bool = False
+) -> None:
     """Constructs a CNOT ladder circuit between an observer and their friend subsystem.
 
     Args:
