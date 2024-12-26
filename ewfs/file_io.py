@@ -1,4 +1,5 @@
 """Functionality for saving and loading experiment data."""
+
 import os
 import pickle
 
@@ -34,14 +35,13 @@ def load_experiments(
     strategy: str,
 ) -> dict:
     """Load experiments from multiple files."""
-    all_results = {
-        fs: {inequality: [] for inequality in ["semi_brukner"]}
-        for fs in friend_sizes
-    }
+    all_results: dict = {fs: {inequality: [] for inequality in ["semi_brukner"]} for fs in friend_sizes}
 
     for friend_size in friend_sizes:
-        for trial in range(1, num_trials+1):
-            with open(os.path.join(data_path, f"{machine_name}_qubits_{friend_size}_trial_{trial}_shots_{shots}.pickle"), "rb") as file:
+        for trial in range(1, num_trials + 1):
+            with open(
+                os.path.join(data_path, f"{machine_name}_qubits_{friend_size}_trial_{trial}_shots_{shots}.pickle"), "rb"
+            ) as file:
                 results = pickle.load(file)
             violations = compute_violations(results=results, charlie_size=friend_size, debbie_size=1, strategy=strategy)
             for key in violations:

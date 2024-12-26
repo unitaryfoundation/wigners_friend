@@ -15,6 +15,18 @@ qiskit-aer = "^0.14.2"
 jupyter = "^1.1.1"
 networkx = "^3.3"
 
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.14.0"
+pre-commit = "^4.0.1"
+ruff = "^0.8.4"
+
+[tool.mypy]
+files = ["ewfs/**/*.py"]
+ignore_missing_imports = true   
+follow_imports = "skip"
+
+[tool.ruff]
+line-length = 120
 
 [build-system]
 requires = ["poetry-core"]

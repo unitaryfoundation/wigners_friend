@@ -4,8 +4,8 @@ from ewfs.ewfs import calculate_branch_factor
 
 def plot_results(
     ax,
-    results: dict, 
-    friend_sizes: list[int], 
+    results: dict,
+    friend_sizes: list[int],
     plot_title: str,
     plot_error_bars: bool = False,
     color: str = "tab:blue",
@@ -19,8 +19,8 @@ def plot_results(
     optimal_threshold: float = 0.380364,
 ):
     # Compute averages and standard deviations
-    avg_results = {}
-    std_results = {}
+    avg_results: dict = {}
+    std_results: dict = {}
     for fs in results:
         avg_results[fs] = {}
         std_results[fs] = {}
@@ -31,7 +31,11 @@ def plot_results(
 
     for _, key in enumerate(["semi_brukner"]):
         means = [np.mean(results[fs][key]) for fs in friend_sizes]
-        errors = [(3/np.sqrt(len(results[fs][key])))*np.std(results[fs][key]) for fs in friend_sizes] if plot_error_bars else None
+        errors = (
+            [(3 / np.sqrt(len(results[fs][key]))) * np.std(results[fs][key]) for fs in friend_sizes]
+            if plot_error_bars
+            else None
+        )
         ax.plot(
             friend_sizes,
             means,
@@ -53,7 +57,7 @@ def plot_results(
     ax.grid(True)
 
     if y_min is not None and y_max is not None:
-        ax.set_ylim(y_min, y_max)    
+        ax.set_ylim(y_min, y_max)
 
     if show_legend:
         ax.legend()

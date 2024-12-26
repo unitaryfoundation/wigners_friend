@@ -1,4 +1,5 @@
 """Extended Wigner's friend scenario (EWFS)" functionality."""
+
 import numpy as np
 import random
 
@@ -59,7 +60,9 @@ class EWFS:
         self.beta = beta or DEFAULT_BETA
 
         self.charlie_qubits = list(range(self.sys_size, (self.sys_size + self.charlie_size)))
-        self.debbie_qubits = list(range(self.sys_size + self.charlie_size, self.sys_size + (self.charlie_size + self.debbie_size)))
+        self.debbie_qubits = list(
+            range(self.sys_size + self.charlie_size, self.sys_size + (self.charlie_size + self.debbie_size))
+        )
 
         self._validate()
 
@@ -83,23 +86,23 @@ class EWFS:
 
         # Apply the setting for Alice/Charlie.
         self._apply_setting(
-            qc=qc, 
+            qc=qc,
             observer=ALICE,
             setting=self.alice_setting,
             angle=self.angles[self.alice_setting],
             observer_creg=alice_creg,
             friend_qubits=self.charlie_qubits,
-            friend_size=self.charlie_size
+            friend_size=self.charlie_size,
         )
         # Apply the setting for Bob/Debbie.
         self._apply_setting(
-            qc=qc, 
+            qc=qc,
             observer=BOB,
             setting=self.bob_setting,
             angle=(self.beta - self.angles[self.bob_setting]),
             observer_creg=bob_creg,
-            friend_qubits=self.debbie_qubits, 
-            friend_size=self.debbie_size
+            friend_qubits=self.debbie_qubits,
+            friend_size=self.debbie_size,
         )
 
         return qc
@@ -119,26 +122,26 @@ class EWFS:
         if self.charlie_size < 1 or self.debbie_size < 1:
             raise ValueError("Friend size must be at least one qubit.")
 
-    def _initialize_measurement_registers(self) -> None:
+    def _initialize_measurement_registers(self) -> tuple:
         """Initialize the classical measurement registers based on the strategy."""
         if self.strategy == "majority_vote":
             if self.alice_setting == "peek" and self.bob_setting != "peek":
                 measurement = ClassicalRegister(self.charlie_size + 1, name="measurement")
                 alice_creg = list(range(self.charlie_size))
-                bob_creg = self.charlie_size
+                bob_creg = [self.charlie_size]
             else:
                 measurement = ClassicalRegister(self.meas_size, name="measurement")
-                alice_creg, bob_creg = 0, 1
+                alice_creg, bob_creg = [0], [1]
 
         elif self.strategy == "random":
             measurement = ClassicalRegister(self.sys_size, name="measurement")
-            alice_creg, bob_creg = 0, 0
+            alice_creg, bob_creg = [0], [0]
 
         alice, bob, charlie, debbie = [
-            QuantumRegister(size, name=name) 
+            QuantumRegister(size, name=name)
             for size, name in zip(
-                [self.alice_size, self.bob_size, self.charlie_size, self.debbie_size], 
-                ["Alice's qubit", "Bob's qubit", "Charlie", "Debbie"]
+                [self.alice_size, self.bob_size, self.charlie_size, self.debbie_size],
+                ["Alice's qubit", "Bob's qubit", "Charlie", "Debbie"],
             )
         ]
         return alice, bob, charlie, debbie, measurement, alice_creg, bob_creg
@@ -160,22 +163,24 @@ class EWFS:
             cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size)
 
     def _apply_setting(
-            self, 
-            qc: QuantumCircuit,
-            observer: int,
-            setting: int,
-            angle: float,
-            observer_creg: list[int] | int,
-            friend_qubits: list[int],
-            friend_size: int
-        ):
+        self,
+        qc: QuantumCircuit,
+        observer: int,
+        setting: str,
+        angle: float,
+        observer_creg: list[int],
+        friend_qubits: list[int],
+        friend_size: int,
+    ):
         """Apply either the PEEK or REVERSE_1/REVERSE_2 settings."""
         if setting == "peek":
             self._apply_peek(qc, observer, observer_creg, friend_qubits, friend_size)
         elif setting in ["reverse_1", "reverse_2"]:
             self._apply_reverse(qc, observer, observer_creg, friend_qubits, friend_size, angle)
 
-    def _apply_peek(self, qc: QuantumCircuit, observer: int, observer_creg: int, friend_qubits: list[int], friend_size: int) -> None:
+    def _apply_peek(
+        self, qc: QuantumCircuit, observer: int, observer_creg: list[int], friend_qubits: list[int], friend_size: int
+    ) -> None:
         if self.strategy == "majority_vote":
             # Ask friend for the outcome.
             qc.measure(friend_qubits, observer_creg)
@@ -183,7 +188,15 @@ class EWFS:
             random_offset = random.randint(0, friend_size - 1)
             qc.measure(friend_qubits[0] + random_offset, observer)
 
-    def _apply_reverse(self, qc: QuantumCircuit, observer: int, observer_creg: int, friend_qubits: list[int], friend_size: int, angle: float) -> None:
+    def _apply_reverse(
+        self,
+        qc: QuantumCircuit,
+        observer: int,
+        observer_creg: list[int],
+        friend_qubits: list[int],
+        friend_size: int,
+        angle: float,
+    ) -> None:
         qc.barrier(observer, friend_qubits)
 
         # Apply the CNOT ladder based on the strategy.
