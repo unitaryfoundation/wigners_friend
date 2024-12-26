@@ -17,7 +17,7 @@ def run_experiment(
     num_trials: int = 2,
     charlie_sizes: range = range(1, 3),
     debbie_sizes: range = range(1, 2),
-    strategy: str = "random",
+    strategy: str = "majority_vote",
     backend: qiskit_aer.backends.aerbackend.AerBackend = qiskit_aer.Aer.get_backend("aer_simulator"),
     settings: list[tuple[str, str]] = DEFAULT_SETTINGS,
 ) -> dict:
@@ -75,6 +75,8 @@ def run_experiment(
                 probabilities = {k[::-1]: v / shots for k, v in count.items()}
                 results[key] = probabilities
             print(f"Results: {results}")
+
+            charlie_size, debbie_size = map(int, friend_size.split("_"))
         
             # Compute violations from result counts.
             violations = compute_violations(
