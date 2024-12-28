@@ -14,12 +14,12 @@ def cnot_ladder(
     """Constructs a CNOT ladder circuit between an observer and their friend subsystem.
 
     Args:
-        qc (QuantumCircuit): The quantum circuit to apply the CNOT ladder to.
-        observer (int): The qubit index of the observer.
-        friend_qubit (int): The starting qubit index of the friend's subsystem.
-        friend_size (int): The number of qubits in the friend's subsystem.
-        reverse (bool): Whether the ladder is constructed in reverse order.
-        internal_copy (bool): Whether the internal state of the friend's qubits should be copied.
+        qc: The quantum circuit to apply the CNOT ladder to.
+        observer: The qubit index of the observer.
+        friend_qubit: The starting qubit index of the friend's subsystem.
+        friend_size: The number of qubits in the friend's subsystem.
+        reverse: Whether the ladder is constructed in reverse order.
+        internal_copy: Whether the internal state of the friend's qubits should be copied.
 
     Raises:
         ValueError: If friend_size is less than 1.
