@@ -32,7 +32,7 @@ def test_experiment(backend, strategy, charlie_sizes, debbie_sizes, settings):
 
     # Assert results are structured as expected
     assert isinstance(results, dict)
-    for friend_size, violations in results.items():
+    for _, violations in results.items():
         assert "semi_brukner" in violations
         for value in violations["semi_brukner"]:
             assert value > 0.75, f"Expected all semi_brukner values > 0.75 but got {value}"

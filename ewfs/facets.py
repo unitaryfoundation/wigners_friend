@@ -1,31 +1,25 @@
 """Facets of the EWFS scenario."""
 
 from dataclasses import dataclass
-from ewfs.scenario import ALICE, BOB, SETTINGS
+from ewfs.utils import decode_results
 
 
 @dataclass
 class Facets:
     results: dict[tuple[str, str], dict]
 
-    def single_expect(self, observer: int, setting: tuple[str, str]) -> float:
-        """Compute single expectation values for either Alice or Bob."""
-        if observer == ALICE:
-            ret = 0
-            for settings in self.results.keys():
-                if settings[ALICE] is setting:
-                    probs = self.results[settings]
-                    # <A> = P(00) + P(01) - P(10) - P(11)
-                    ret += probs.get("00", 0.0) + probs.get("01", 0.0) - probs.get("10", 0.0) - probs.get("11", 0.0)
-            return ret / len(SETTINGS)
-        else:
-            ret = 0
-            for settings in self.results.keys():
-                if settings[BOB] is setting:
-                    probs = self.results[settings]
-                    # <B> = P(00) - P(01) + P(10) - P(11)
-                    ret += probs.get("00", 0.0) - probs.get("01", 0.0) + probs.get("10", 0.0) - probs.get("11", 0.0)
-            return ret / len(SETTINGS)
+    def compute_violations(self, charlie_size: int, debbie_size: int, strategy: str, verbose: bool = False) -> dict:
+        """Compute violation values based on strategy."""
+        if strategy == "majority_vote":
+            self.results = decode_results(results=self.results, charlie_size=charlie_size, debbie_size=debbie_size)
+
+        facets = Facets(self.results)
+        semi_brukner = facets.semi_brukner
+
+        if verbose:
+            print(f"{semi_brukner=} -- is violated: {semi_brukner > 0}")
+
+        return {"semi_brukner": semi_brukner}
 
     def double_expect(self, settings: tuple[str, str]) -> float:
         """Expectation value of product of two operators."""

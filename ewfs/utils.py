@@ -1,31 +1,5 @@
 """Local friendliness Bell-like iinequalities for EWFS."""
 
-from ewfs.facets import Facets
-
-
-def compute_inequalities(results: dict, verbose: bool = False) -> dict:
-    """Compute the LF inequalities."""
-    facets = Facets(results)
-    semi_brukner = facets.semi_brukner
-
-    if verbose:
-        print(f"{semi_brukner=} -- is violated: {semi_brukner > 0}")
-
-    return {"semi_brukner": semi_brukner}
-
-
-def compute_violations(
-    results: dict, charlie_size: int, debbie_size: int, strategy: str, verbose: bool = False
-) -> dict:
-    """Compute violation values based on strategy."""
-    if strategy == "random":
-        return compute_inequalities(results=results, verbose=verbose)
-    elif strategy == "majority_vote":
-        return compute_inequalities(
-            decode_results(results=results, charlie_size=charlie_size, debbie_size=debbie_size), verbose=verbose
-        )
-    raise ValueError(f"Strategy: {strategy} not defined.")
-
 
 def decode_results(results: dict, charlie_size: int, debbie_size: int = 1) -> dict:
     """Take majority vote of measurement bit-strings."""

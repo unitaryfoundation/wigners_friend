@@ -7,7 +7,7 @@ import qiskit_aer
 
 from ewfs.file_io import save_data
 from ewfs.scenario import EWFS
-from ewfs.utils import compute_violations
+from ewfs.facets import Facets
 
 
 DEFAULT_SETTINGS = [setting for setting in itertools.product(["peek", "reverse_1", "reverse_2"], repeat=2)]
@@ -63,7 +63,8 @@ def run_experiment(
                 )
                 print(f"Task with task ID: {tasks[trial][friend_size].job_id()}\n")
 
-    results = {setting: {"00": 0.0, "01": 0.0, "10": 0.0, "11": 0.0} for setting in DEFAULT_SETTINGS}
+    # results = {setting: {"00": 0.0, "01": 0.0, "10": 0.0, "11": 0.0} for setting in DEFAULT_SETTINGS}
+    results = {}
     post_processed_results: dict = {fs: {inequality: [] for inequality in ["semi_brukner"]} for fs in friend_sizes}
     for trial in tasks:
         for friend_size, task in tasks[trial].items():
@@ -75,11 +76,13 @@ def run_experiment(
                 results[key] = probabilities
             print(f"Results: {results}")
 
+            # friend_size is a string of the form "charlie_size_debbie_size".
             charlie_size, debbie_size = map(int, friend_size.split("_"))
 
             # Compute violations from result counts.
-            violations = compute_violations(
-                results=results, charlie_size=charlie_size, debbie_size=debbie_size, strategy=strategy, verbose=True
+            facets = Facets(results)
+            violations = facets.compute_violations(
+                charlie_size=charlie_size, debbie_size=debbie_size, strategy=strategy
             )
             print(f"Violations: {violations}\n")
 
