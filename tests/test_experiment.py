@@ -2,7 +2,7 @@
 
 import pytest
 import qiskit_aer
-from ewfs.compute_violations import compute_violations
+from ewfs.experiment import run_experiment
 
 
 @pytest.mark.parametrize("backend", [qiskit_aer.Aer.get_backend("aer_simulator")])
@@ -19,8 +19,8 @@ from ewfs.compute_violations import compute_violations
         ],
     ],
 )
-def test_compute_violations(backend, strategy, charlie_sizes, debbie_sizes, settings):
-    results = compute_violations(
+def test_experiment(backend, strategy, charlie_sizes, debbie_sizes, settings):
+    results = run_experiment(
         shots=10_000,
         num_trials=1,
         charlie_sizes=charlie_sizes,
@@ -28,7 +28,6 @@ def test_compute_violations(backend, strategy, charlie_sizes, debbie_sizes, sett
         strategy=strategy,
         backend=backend,
         settings=settings,
-        verbose=False,
     )
 
     # Assert results are structured as expected

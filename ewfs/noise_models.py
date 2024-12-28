@@ -1,4 +1,5 @@
 """Custom noise models for simulator-based experiments."""
+
 from qiskit_aer.noise import (
     depolarizing_error,
     NoiseModel,
@@ -44,4 +45,3 @@ def bitflip_model(p: float) -> NoiseModel:
     noise_bit_flip.add_all_qubit_quantum_error(error_gate2, ["cx"])
 
     return noise_bit_flip
-

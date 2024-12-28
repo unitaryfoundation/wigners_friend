@@ -3,7 +3,7 @@
 import os
 import pickle
 
-from .ewfs import compute_violations
+from ewfs.utils import compute_violations
 
 
 def save_data(

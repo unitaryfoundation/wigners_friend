@@ -1,5 +1,7 @@
+"""Plotting functions for the EWFS project."""
+
 import numpy as np
-from ewfs.ewfs import calculate_branch_factor
+from ewfs.utils import calculate_branch_factor
 
 
 def plot_results(
