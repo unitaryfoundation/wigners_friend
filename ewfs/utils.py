@@ -1,49 +1,12 @@
 """Local friendliness Bell-like iinequalities for EWFS."""
 
-import itertools
-from ewfs.scenario import ALICE, BOB, SETTINGS
+from ewfs.facets import Facets
 
 
-DEFAULT_SETTINGS = [setting for setting in itertools.product(["peek", "reverse_1", "reverse_2"], repeat=2)]
-
-
-def single_expect(observer: int, setting: tuple[str, str], results: dict) -> float:
-    """Compute single expectation values for either Alice or Bob."""
-    if observer is ALICE:
-        ret = 0
-        for settings in results.keys():
-            if settings[ALICE] is setting:
-                probs = results[settings]
-                # <A> = P(00) + P(01) - P(10) - P(11)
-                ret += probs.get("00", 0) + probs.get("01", 0) - probs.get("10", 0) - probs.get("11", 0)
-        return ret / len(SETTINGS)
-    else:
-        ret = 0
-        for settings in results.keys():
-            if settings[BOB] is setting:
-                probs = results[settings]
-                # <B> = P(00) - P(01) + P(10) - P(11)
-                ret += probs.get("00", 0) - probs.get("01", 0) + probs.get("10", 0) - probs.get("11", 0)
-        return ret / len(SETTINGS)
-
-
-def double_expect(settings: tuple[str, str], results: dict) -> float:
-    """Expectation value of product of two operators."""
-    probs = results[settings]
-    # <AB> = P(00) - P(01) - P(10) + P(11)
-    return probs.get("00", 0) - probs.get("01", 0) - probs.get("10", 0) + probs.get("11", 0)
-
-
-def compute_inequalities(results, verbose=False) -> dict[str, float]:
-    """Compute the semi-Brukner inequalities."""
-    A1B2 = double_expect(("peek", "reverse_1"), results)
-    A1B3 = double_expect(("peek", "reverse_2"), results)
-
-    A3B2 = double_expect(("reverse_2", "reverse_1"), results)
-    A3B3 = double_expect(("reverse_2", "reverse_2"), results)
-
-    # Eq. (18) from [1].
-    semi_brukner = -A1B2 + A1B3 - A3B2 - A3B3 - 2
+def compute_inequalities(results: dict, verbose: bool = False) -> dict:
+    """Compute the LF inequalities."""
+    facets = Facets(results)
+    semi_brukner = facets.semi_brukner
 
     if verbose:
         print(f"{semi_brukner=} -- is violated: {semi_brukner > 0}")

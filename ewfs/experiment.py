@@ -5,6 +5,7 @@ from collections import defaultdict
 import qiskit
 import qiskit_aer
 
+from ewfs.file_io import save_data
 from ewfs.scenario import EWFS
 from ewfs.utils import compute_violations
 
@@ -18,8 +19,10 @@ def run_experiment(
     charlie_sizes: range = range(1, 3),
     debbie_sizes: range = range(1, 2),
     strategy: str = "majority_vote",
-    backend: qiskit_aer.backends.aerbackend.AerBackend = qiskit_aer.Aer.get_backend("aer_simulator"),
+    backend: qiskit.providers.Backend = qiskit_aer.Aer.get_backend("aer_simulator"),
     settings: list[tuple[str, ...]] = DEFAULT_SETTINGS,
+    save: bool = False,
+    save_path: str | None = None,
 ) -> dict:
     """Run the EWFS experiment."""
     # The tasks dictionary has a key that corresponds to the qubit
@@ -60,7 +63,7 @@ def run_experiment(
                 )
                 print(f"Task with task ID: {tasks[trial][friend_size].job_id()}\n")
 
-    results = {}
+    results = {setting: {"00": 0.0, "01": 0.0, "10": 0.0, "11": 0.0} for setting in DEFAULT_SETTINGS}
     post_processed_results: dict = {fs: {inequality: [] for inequality in ["semi_brukner"]} for fs in friend_sizes}
     for trial in tasks:
         for friend_size, task in tasks[trial].items():
@@ -81,6 +84,28 @@ def run_experiment(
             print(f"Violations: {violations}\n")
 
             for key in violations:
+                print(key)
                 post_processed_results[friend_size][key].append(violations[key])
             print(f"Post-processed results: {post_processed_results}\n")
+
+    if save:
+        save_data(
+            results=results,
+            charlie_size=charlie_size,
+            debbie_size=debbie_size,
+            trial=trial,
+            shots=shots,
+            backend=backend,
+            save_path=save_path,
+        )
     return post_processed_results
+
+
+if __name__ == "__main__":
+    settings = [
+        ("peek", "reverse_1"),
+        ("peek", "reverse_2"),
+        ("reverse_2", "reverse_1"),
+        ("reverse_2", "reverse_2"),
+    ]
+    run_experiment(charlie_sizes=range(1, 3), debbie_sizes=range(1, 3), strategy="random")
