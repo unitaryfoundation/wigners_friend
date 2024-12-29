@@ -72,12 +72,3 @@ class Facets:
         A2B3 = self.double_expect(("reverse_1", "reverse_2"))
 
         return A1B1 - A1B3 - A2B1 - A2B3 - 2
-
-    def facet_names(self) -> dict:
-        """Retrieve all property names and their string representations."""
-        property_strings = {}
-        for attr_name in dir(self):
-            attr = getattr(self.__class__, attr_name, None)
-            if isinstance(attr, property):
-                property_strings[attr_name] = getattr(self, attr_name)
-        return property_strings

@@ -66,9 +66,7 @@ def run_experiment(
                 print(f"Task with task ID: {tasks[trial][friend_size].job_id()}\n")
 
     results = {setting: {"00": 0.0, "01": 0.0, "10": 0.0, "11": 0.0} for setting in DEFAULT_SETTINGS}
-    post_processed_results: dict = {
-        fs: {inequality: [] for inequality in ["semi_brukner", "brukner"]} for fs in friend_sizes
-    }
+    post_processed_results: defaultdict = defaultdict(lambda: defaultdict(list))
     for trial in tasks:
         for friend_size, task in tasks[trial].items():
             print(f"Processing trial {trial} for task with task ID: {task.job_id()}")
