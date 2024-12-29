@@ -6,20 +6,26 @@ from ewfs.utils import decode_results
 
 @dataclass
 class Facets:
-    results: dict[tuple[str, str], dict]
+    def __init__(self, results: dict, charlie_size: int, debbie_size: int, strategy: str) -> None:
+        self.results = results
+        self.charlie_size = charlie_size
+        self.debbie_size = debbie_size
+        self.strategy = strategy
 
-    def compute_violations(self, charlie_size: int, debbie_size: int, strategy: str, verbose: bool = False) -> dict:
+    def compute_violations(self, verbose: bool = False) -> dict:
         """Compute violation values based on strategy."""
-        if strategy == "majority_vote":
-            self.results = decode_results(results=self.results, charlie_size=charlie_size, debbie_size=debbie_size)
+        if self.strategy == "majority_vote":
+            self.results = decode_results(
+                results=self.results, charlie_size=self.charlie_size, debbie_size=self.debbie_size
+            )
 
-        facets = Facets(self.results)
-        semi_brukner = facets.semi_brukner
+        semi_brukner = self.semi_brukner
+        brukner = self.brukner
 
         if verbose:
             print(f"{semi_brukner=} -- is violated: {semi_brukner > 0}")
-
-        return {"semi_brukner": semi_brukner}
+            print(f"{brukner=} -- is violated: {brukner > 0}")
+        return {"brukner": brukner, "semi_brukner": semi_brukner}
 
     def double_expect(self, settings: tuple[str, str]) -> float:
         """Expectation value of product of two operators."""
@@ -34,4 +40,15 @@ class Facets:
         A1B3 = self.double_expect(("peek", "reverse_2"))
         A3B2 = self.double_expect(("reverse_2", "reverse_1"))
         A3B3 = self.double_expect(("reverse_2", "reverse_2"))
+
         return -A1B2 + A1B3 - A3B2 - A3B3 - 2
+
+    @property
+    def brukner(self) -> float:
+        """Calculate the Bruckner facet as defined in Eq. (19) of arXiv:1907.05607."""
+        A1B1 = self.double_expect(("peek", "peek"))
+        A1B3 = self.double_expect(("peek", "reverse_2"))
+        A2B1 = self.double_expect(("reverse_1", "peek"))
+        A2B3 = self.double_expect(("reverse_1", "reverse_2"))
+
+        return A1B1 - A1B3 - A2B1 - A2B3 - 2

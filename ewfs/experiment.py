@@ -63,9 +63,10 @@ def run_experiment(
                 )
                 print(f"Task with task ID: {tasks[trial][friend_size].job_id()}\n")
 
-    # results = {setting: {"00": 0.0, "01": 0.0, "10": 0.0, "11": 0.0} for setting in DEFAULT_SETTINGS}
-    results = {}
-    post_processed_results: dict = {fs: {inequality: [] for inequality in ["semi_brukner"]} for fs in friend_sizes}
+    results = {setting: {"00": 0.0, "01": 0.0, "10": 0.0, "11": 0.0} for setting in DEFAULT_SETTINGS}
+    post_processed_results: dict = {
+        fs: {inequality: [] for inequality in ["semi_brukner", "brukner"]} for fs in friend_sizes
+    }
     for trial in tasks:
         for friend_size, task in tasks[trial].items():
             print(f"Processing trial {trial} for task with task ID: {task.job_id()}")
@@ -80,14 +81,11 @@ def run_experiment(
             charlie_size, debbie_size = map(int, friend_size.split("_"))
 
             # Compute violations from result counts.
-            facets = Facets(results)
-            violations = facets.compute_violations(
-                charlie_size=charlie_size, debbie_size=debbie_size, strategy=strategy
-            )
+            facets = Facets(results=results, charlie_size=charlie_size, debbie_size=debbie_size, strategy=strategy)
+            violations = facets.compute_violations()
             print(f"Violations: {violations}\n")
 
             for key in violations:
-                print(key)
                 post_processed_results[friend_size][key].append(violations[key])
             print(f"Post-processed results: {post_processed_results}\n")
 
