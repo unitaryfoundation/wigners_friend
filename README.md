@@ -56,7 +56,7 @@ measurement: 2/═════════════════════�
 We can compute the expectation value of a collection of circuits defined by setting choices over a chosen strategy by
 running the circuits on either a real or simulated backend quantum device. Using these expectation values, we can
 subsequently compute the Bell-like inequalities from [arXiv:1907.05607](https://arxiv.org/abs/1907.05607) (refer to
-equations 13-22).
+equations 13-21).
 
 ```py
 from ewfs.experiment import run_experiment
