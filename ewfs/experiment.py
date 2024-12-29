@@ -20,11 +20,13 @@ def run_experiment(
     debbie_sizes: range = range(1, 2),
     strategy: str = "majority_vote",
     backend: qiskit.providers.Backend = qiskit_aer.Aer.get_backend("aer_simulator"),
-    settings: list[tuple[str, ...]] = DEFAULT_SETTINGS,
+    settings: list[tuple[str, ...]] | None = None,
     save: bool = False,
     save_path: str | None = None,
 ) -> dict:
     """Run the EWFS experiment."""
+    settings = settings or DEFAULT_SETTINGS
+
     # The tasks dictionary has a key that corresponds to the qubit
     # system size with an associated value of the task for that size.
     tasks: defaultdict = defaultdict(dict)
@@ -100,13 +102,3 @@ def run_experiment(
             save_path=save_path,
         )
     return post_processed_results
-
-
-if __name__ == "__main__":
-    settings = [
-        ("peek", "reverse_1"),
-        ("peek", "reverse_2"),
-        ("reverse_2", "reverse_1"),
-        ("reverse_2", "reverse_2"),
-    ]
-    run_experiment(charlie_sizes=range(1, 3), debbie_sizes=range(1, 3), strategy="random")
