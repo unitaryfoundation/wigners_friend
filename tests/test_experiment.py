@@ -19,7 +19,7 @@ from ewfs.experiment import run_experiment
         None,
     ],
 )
-def test_random_stratgegy(backend, charlie_sizes, debbie_sizes, settings):
+def test_random_strategy(backend, charlie_sizes, debbie_sizes, settings):
     results = run_experiment(
         shots=10_000,
         num_trials=1,
