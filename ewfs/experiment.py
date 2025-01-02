@@ -38,7 +38,7 @@ def run_experiment(
             for trial in range(1, num_trials + 1):
                 circuits = {}
 
-                # Create circuits for each EWFS setting.  Note, we remove barriers in the Qiskit circuit.
+                # Create circuits for each EWFS setting.
                 for alice_setting, bob_setting in settings:
                     circuit = EWFS(
                         alice_setting=alice_setting,
