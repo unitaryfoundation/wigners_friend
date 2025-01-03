@@ -1,5 +1,7 @@
 """Custom noise models for simulator-based experiments."""
 
+from qiskit import QuantumCircuit
+
 from qiskit_aer.noise import (
     depolarizing_error,
     NoiseModel,
@@ -7,7 +9,51 @@ from qiskit_aer.noise import (
 )
 
 
-def depolarizing_noise_model(error: float = 0.01) -> NoiseModel:
+def get_single_qubit_gates(circ: QuantumCircuit) -> set[str]:
+    """Extracts single-qubit gates from a quantum circuit.
+    Args:
+        circ: Quantum circuit.
+    Returns:
+        List of string names of single-qubit gates.
+    """
+    gate_set = set()
+    for instruction in circ.data:
+        op = instruction.operation
+        if op.num_qubits == 1:
+            if op.name != 'measure':
+                gate_set.add(op.name)
+    return gate_set
+
+
+def get_two_qubit_gates(circ: QuantumCircuit) -> set[str]:
+    """Extracts two-qubit gates from a quantum circuit.
+    Args:
+        circ: Quantum circuit.
+    Returns:
+        Set of string names of two-qubit gates.
+    """
+    gate_set = set()
+    for instruction in circ.data:
+        op = instruction.operation
+        if op.num_qubits == 2:
+            gate_set.add(op.name)
+    return gate_set
+
+def get_depolarizing_model(circ: QuantumCircuit, single_qubit_error_rate=0.01, two_qubit_error_rate=0.03) -> NoiseModel:
+    """Depolarizing noise model with error rates applied to the single and two-qubit gates of the circuit.
+    Args:
+        circ: Quantum circuit.
+    Returns:
+        Depolarizing noise model.
+    """
+    single_qubit_gates = get_single_qubit_gates(circ)
+    two_qubit_gates = get_two_qubit_gates(circ)
+
+    return depolarizing_noise_model(single_qubit_error_rate, two_qubit_error_rate, single_qubit_gates, two_qubit_gates)
+
+
+def depolarizing_noise_model(single_qubit_error_rate: float=0.01, two_qubit_error_rate: float=0.03, 
+                             single_qubit_gates: set | None = None, two_qubit_gates: set | None = None) -> NoiseModel:
     """Defines an depolarizing noise model with one-qubit.
 
     Args:
@@ -15,9 +61,12 @@ def depolarizing_noise_model(error: float = 0.01) -> NoiseModel:
     Returns:
         Depolarizing noise model.
     """
+    single_qubit_gates = ["u1", "u2", "u3"] if None else single_qubit_gates
+    two_qubit_gates = ["cx"] if None else two_qubit_gates
+
     noise_model = NoiseModel()
-    noise_model.add_all_qubit_quantum_error(depolarizing_error(error, 1), ["u1", "u2", "u3"])
-    noise_model.add_all_qubit_quantum_error(depolarizing_error(error, 2), "cx")
+    noise_model.add_all_qubit_quantum_error(depolarizing_error(single_qubit_error_rate, 1), list(single_qubit_gates))
+    noise_model.add_all_qubit_quantum_error(depolarizing_error(two_qubit_error_rate, 2), list(two_qubit_gates))
     return noise_model
 
 
