@@ -1,7 +1,7 @@
 from qiskit import QuantumCircuit
 from qiskit_aer import AerSimulator
 
-from ewfs.noise_models import get_n_qubit_gateset, get_depolarizing_model
+from ewfs.noise_models import get_n_qubit_gateset, depolarizing_model
 
 
 def test_get_single_qubit_gates():
@@ -32,7 +32,7 @@ def test_get_depolarizing_model():
     qc.measure_all()
 
     # lots of noise
-    noise_model = get_depolarizing_model(circ=qc, single_qubit_error_rate=0.5, two_qubit_error_rate=0.5)
+    noise_model = depolarizing_model(circ=qc, single_qubit_error_rate=0.5, two_qubit_error_rate=0.5)
     # Create noisy simulator backend
     sim_noise = AerSimulator(noise_model=noise_model)
     # Run noisy simulation
