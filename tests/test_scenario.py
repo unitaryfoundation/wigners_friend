@@ -1,7 +1,9 @@
 """Tests for EWFS scenario."""
 
 import pytest
-from ewfs.scenario import EWFS, SETTINGS, STRATEGIES, DEFAULT_ANGLES, DEFAULT_BETA
+from ewfs.scenario import EWFS, DEFAULT_ANGLES, DEFAULT_BETA
+from ewfs.setting import SETTINGS
+from ewfs.strategy import STRATEGIES
 
 
 @pytest.mark.parametrize("alice_setting", SETTINGS)

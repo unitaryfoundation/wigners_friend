@@ -1,5 +1,7 @@
 """Local friendliness Bell-like iinequalities for EWFS."""
 
+from ewfs.setting import PEEK, REVERSE_1, REVERSE_2
+
 
 def decode_results(results: dict, charlie_size: int, debbie_size: int = 1) -> dict:
     """Take majority vote of measurement bit-strings."""
@@ -7,7 +9,7 @@ def decode_results(results: dict, charlie_size: int, debbie_size: int = 1) -> di
 
     # For each setting, there is a dictionary of measurement results.
     for setting in results:
-        if setting == ("peek", "reverse_1") or setting == ("peek", "reverse_2"):
+        if setting == (PEEK, REVERSE_1) or setting == (PEEK, REVERSE_2):
             # Debbie's size is 1 because no PEEK setting
             debbie_size = 1
 

@@ -1,28 +1,13 @@
 """Extended Wigner's friend scenario (EWFS)" functionality."""
 
-import numpy as np
 import random
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
+
 from ewfs.circuit import cnot_ladder
-
-
-# "Super"-observers (Alice and Bob).
-ALICE, BOB = 0, 1
-
-# Experiment settings (peek, reverse_1, and reverse_2).
-SETTINGS = ["peek", "reverse_1", "reverse_2"]
-# Supported strategies for the super-observers
-STRATEGIES = ["majority_vote", "random"]
-
-# (Optimized) angles and beta term used for Alice and Bob measurement operators. Adapted from arXiv:1907.05607. Note
-# that despite the fact that degrees are used, we need to convert this to radians.
-DEFAULT_ANGLES = {
-    "peek": np.deg2rad(40),
-    "reverse_1": np.deg2rad(230),
-    "reverse_2": np.deg2rad(310),
-}
-DEFAULT_BETA = np.deg2rad(220)
+from ewfs.observer import ALICE, BOB, DEFAULT_ANGLES, DEFAULT_BETA
+from ewfs.strategy import MAJORITY_VOTE, RANDOM
+from ewfs.setting import PEEK, REVERSE_1, REVERSE_2
 
 
 class EWFS:
@@ -64,8 +49,6 @@ class EWFS:
             range(self.sys_size + self.charlie_size, self.sys_size + (self.charlie_size + self.debbie_size))
         )
 
-        self._validate()
-
     def circuit(self) -> QuantumCircuit:
         """Generate the circuit for extended Wigner's friend scenario."""
         # Define quantum registers
@@ -78,8 +61,8 @@ class EWFS:
         self._prepare_bipartite_system(qc)
 
         # Perform the rotations for Alice and Bob based on their settings.
-        self._ewfs_rotation(qc, ALICE, self.angles["peek"])
-        self._ewfs_rotation(qc, BOB, self.beta - self.angles["peek"])
+        self._ewfs_rotation(qc, ALICE, self.angles[PEEK])
+        self._ewfs_rotation(qc, BOB, self.beta - self.angles[PEEK])
 
         # Apply the CNOT ladders based on the strategy.
         self._apply_cnot_ladders(qc)
@@ -107,25 +90,10 @@ class EWFS:
 
         return qc
 
-    def _validate(self) -> None:
-        """Validate the settings for the EWFS scenario."""
-
-        # Validate the settings.
-        if self.alice_setting not in SETTINGS or self.bob_setting not in SETTINGS:
-            raise ValueError(f"Super-observer setting is not defined. Supported settings: {SETTINGS}")
-
-        # Validate the strategy.
-        if self.strategy not in STRATEGIES:
-            raise ValueError(f"Strategy is not defined. Supported strategies: {STRATEGIES}")
-
-        # Validate the friend qubit register sizes.
-        if self.charlie_size < 1 or self.debbie_size < 1:
-            raise ValueError("Friend size must be at least one qubit.")
-
     def _initialize_measurement_registers(self) -> tuple:
         """Initialize the classical measurement registers based on the strategy."""
-        if self.strategy == "majority_vote":
-            if self.alice_setting == "peek" and self.bob_setting != "peek":
+        if self.strategy is MAJORITY_VOTE:
+            if self.alice_setting is PEEK and self.bob_setting is not PEEK:
                 measurement = ClassicalRegister(self.charlie_size + 1, name="measurement")
                 alice_creg = list(range(self.charlie_size))
                 bob_creg = [self.charlie_size]
@@ -133,7 +101,7 @@ class EWFS:
                 measurement = ClassicalRegister(self.meas_size, name="measurement")
                 alice_creg, bob_creg = [0], [1]
 
-        elif self.strategy == "random":
+        elif self.strategy is RANDOM:
             measurement = ClassicalRegister(self.sys_size, name="measurement")
             alice_creg, bob_creg = [0], [0]
 
@@ -155,10 +123,10 @@ class EWFS:
 
     def _apply_cnot_ladders(self, qc: QuantumCircuit) -> None:
         """Apply the CNOT ladders based on the strategy."""
-        if self.strategy == "majority_vote":
+        if self.strategy is MAJORITY_VOTE:
             cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size, reverse=False, internal_copy=True)
             cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size, reverse=False, internal_copy=True)
-        elif self.strategy == "random":
+        elif self.strategy is RANDOM:
             cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size)
             cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size)
 
@@ -173,18 +141,18 @@ class EWFS:
         friend_size: int,
     ):
         """Apply either the PEEK or REVERSE_1/REVERSE_2 settings."""
-        if setting == "peek":
+        if setting is PEEK:
             self._apply_peek(qc, observer, observer_creg, friend_qubits, friend_size)
-        elif setting in ["reverse_1", "reverse_2"]:
+        elif setting in [REVERSE_1, REVERSE_2]:
             self._apply_reverse(qc, observer, observer_creg, friend_qubits, friend_size, angle)
 
     def _apply_peek(
         self, qc: QuantumCircuit, observer: int, observer_creg: list[int], friend_qubits: list[int], friend_size: int
     ) -> None:
-        if self.strategy == "majority_vote":
+        if self.strategy is MAJORITY_VOTE:
             # Ask friend for the outcome.
             qc.measure(friend_qubits, observer_creg)
-        elif self.strategy == "random":
+        elif self.strategy is RANDOM:
             random_offset = random.randint(0, friend_size - 1)
             qc.measure(friend_qubits[0] + random_offset, observer)
 
@@ -200,24 +168,24 @@ class EWFS:
         qc.barrier(observer, friend_qubits)
 
         # Apply the CNOT ladder based on the strategy.
-        if self.strategy == "majority_vote":
+        if self.strategy is MAJORITY_VOTE:
             cnot_ladder(qc, observer, friend_qubits[0], friend_size, reverse=True, internal_copy=True)
-        elif self.strategy == "random":
+        elif self.strategy is RANDOM:
             cnot_ladder(qc, observer, friend_qubits[0], friend_size)
 
         # Apply the rotation based on the observer.
         if observer is ALICE:
-            self._ewfs_rotation(qc, observer, self.angles["peek"], invert=False)
+            self._ewfs_rotation(qc, observer, self.angles[PEEK], invert=False)
         if observer is BOB:
-            self._ewfs_rotation(qc, observer, self.beta - self.angles["peek"], invert=False)
+            self._ewfs_rotation(qc, observer, self.beta - self.angles[PEEK], invert=False)
 
         # Apply a rotation.
         self._ewfs_rotation(qc, observer, angle)
 
         # Apply the measurement based on the strategy.
-        if self.strategy == "majority_vote":
+        if self.strategy is MAJORITY_VOTE:
             qc.measure(observer, observer_creg)
-        elif self.strategy == "random":
+        elif self.strategy is RANDOM:
             qc.measure(observer, observer)
 
     def _ewfs_rotation(self, qc: QuantumCircuit, observer: int, angle: float, invert: bool = True) -> None:
