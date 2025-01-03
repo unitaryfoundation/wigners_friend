@@ -9,35 +9,19 @@ from qiskit_aer.noise import (
 )
 
 
-def get_single_qubit_gates(circ: QuantumCircuit) -> set[str]:
-    """Extracts single-qubit gates from a quantum circuit.
+def get_n_qubit_gateset(circ: QuantumCircuit, num_qubits: int) -> set[str]:
+    """Extracts the set of gates of size num_qubits from a quantum circuit.
     Args:
         circ: Quantum circuit.
+        num_qubits: The size of the gates to get.
     Returns:
-        List of string names of single-qubit gates.
+        Set of string names of <num_qubits>-qubit gates.
     """
-    gate_set = set()
-    for instruction in circ.data:
-        op = instruction.operation
-        if op.num_qubits == 1:
-            if op.name != 'measure':
-                gate_set.add(op.name)
-    return gate_set
+    return {
+        instr.operation.name for instr in circ.data 
+        if instr.operation.num_qubits == num_qubits and instr.operation.name != "measure"
+    }
 
-
-def get_two_qubit_gates(circ: QuantumCircuit) -> set[str]:
-    """Extracts two-qubit gates from a quantum circuit.
-    Args:
-        circ: Quantum circuit.
-    Returns:
-        Set of string names of two-qubit gates.
-    """
-    gate_set = set()
-    for instruction in circ.data:
-        op = instruction.operation
-        if op.num_qubits == 2:
-            gate_set.add(op.name)
-    return gate_set
 
 def get_depolarizing_model(circ: QuantumCircuit, single_qubit_error_rate=0.01, two_qubit_error_rate=0.03) -> NoiseModel:
     """Depolarizing noise model with error rates applied to the single and two-qubit gates of the circuit.
@@ -46,8 +30,8 @@ def get_depolarizing_model(circ: QuantumCircuit, single_qubit_error_rate=0.01, t
     Returns:
         Depolarizing noise model.
     """
-    single_qubit_gates = get_single_qubit_gates(circ)
-    two_qubit_gates = get_two_qubit_gates(circ)
+    single_qubit_gates = get_n_qubit_gateset(circ, num_qubits=1)
+    two_qubit_gates = get_n_qubit_gateset(circ, num_qubits=2)
 
     return depolarizing_noise_model(single_qubit_error_rate, two_qubit_error_rate, single_qubit_gates, two_qubit_gates)
 
