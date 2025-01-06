@@ -3,6 +3,7 @@
 from collections import defaultdict
 import qiskit
 import qiskit_aer
+from qiskit_ibm_runtime import SamplerV2
 
 from ewfs.file_io import save_data
 from ewfs.scenario import EWFS
@@ -16,13 +17,15 @@ def run_experiment(
     charlie_sizes: range | None = None,
     debbie_sizes: range | None = None,
     strategy: str = "majority_vote",
-    backend: qiskit.providers.Backend = qiskit_aer.Aer.get_backend("aer_simulator"),
+    backend: qiskit.providers.Backend | None = None,
     settings: list[tuple[str, ...]] | None = None,
     save: bool = False,
     save_path: str | None = None,
 ) -> dict:
     """Run the EWFS experiment."""
     settings = settings or SETTING_PAIRS
+    backend = backend or qiskit_aer.Aer.get_backend("aer_simulator")
+    sampler = SamplerV2(backend)
 
     charlie_sizes = charlie_sizes or range(1, 3)
     debbie_sizes = debbie_sizes or range(1, 2)
@@ -58,10 +61,9 @@ def run_experiment(
                 friend_size = f"{charlie_size}_{debbie_size}"
                 friend_sizes.append(friend_size)
                 print(f"Trial {trial} out of {num_trials} for task of {friend_size}")
-                tasks[trial][friend_size] = backend.run(
+                tasks[trial][friend_size] = sampler.run(
                     list(transpiled_circuits.values()),
                     shots=shots,
-                    verbatim=True,
                 )
                 print(f"Task with task ID: {tasks[trial][friend_size].job_id()}\n")
 
@@ -72,7 +74,10 @@ def run_experiment(
             print(f"Processing trial {trial} for task with task ID: {task.job_id()}")
 
             result = task.result()
-            for key, count in zip(transpiled_circuits.keys(), result.get_counts()):
+            pub_results = zip(
+                transpiled_circuits.keys(), [pub_result.data.measurement.get_counts() for pub_result in result]
+            )
+            for key, count in pub_results:
                 probabilities = {k[::-1]: v / shots for k, v in count.items()}
                 results[key] = probabilities
             print(f"Results: {results}")
