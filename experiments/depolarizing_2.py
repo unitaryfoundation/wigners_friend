@@ -1,0 +1,151 @@
+from collections import defaultdict
+from typing import Callable
+
+from qiskit import QuantumCircuit, transpile
+import qiskit
+from qiskit_aer import AerSimulator
+from qiskit_ibm_runtime import SamplerV2
+
+from ewfs.noise_models import depolarizing_model
+from ewfs.file_io import save_data
+from ewfs.scenario import EWFS
+from ewfs.violations import compute_violations
+from ewfs.setting import SETTING_PAIRS
+from ewfs.strategy import MAJORITY_VOTE
+
+def run_noisy_sim_experiment(
+    shots: int = 10_000,
+    num_trials: int = 2,
+    charlie_sizes: range | None = None,
+    debbie_sizes: range | None = None,
+    strategy: str = "majority_vote",
+    backend_factory: Callable[[QuantumCircuit], qiskit.providers.Backend] | None = None,
+    settings: list[tuple[str, ...]] | None = None,
+    save: bool = False,
+    save_path: str | None = None,
+) -> dict:
+    """Run the EWFS on a noisy simulation experiment."""
+    settings = settings or SETTING_PAIRS
+
+    charlie_sizes = charlie_sizes or range(1, 3)
+    debbie_sizes = debbie_sizes or range(1, 2)
+
+    # The tasks dictionary has a key that corresponds to the qubit
+    # system size with an associated value of the task for that size.
+    tasks: defaultdict = defaultdict(dict)
+
+    # Construct all circuits to be run over all qubit sizes.
+    friend_sizes = []
+    for charlie_size in charlie_sizes:
+        for debbie_size in debbie_sizes:
+            for trial in range(1, num_trials + 1):
+                circuits = {}
+
+                # Create circuits for each EWFS setting.
+                for alice_setting, bob_setting in settings:
+                    circuit = EWFS(
+                        alice_setting=alice_setting,
+                        bob_setting=bob_setting,
+                        strategy=strategy,
+                        charlie_size=charlie_size,
+                        debbie_size=debbie_size,
+                    ).circuit()
+                    circuits[(alice_setting, bob_setting)] = circuit
+
+                backend = backend_factory(circuit) or AerSimulator()
+                sampler = SamplerV2(backend)
+
+                # Use backend to transpile circuits.
+                transpiled_circuits = {
+                    k: transpile(circuit, backend, optimization_level=0) for k, circuit in circuits.items()
+                }
+                print("TOTAL GATES AT 0:", sum(
+                    sum(qc.count_ops().values())
+                    for _, qc in transpiled_circuits.items())
+                )
+
+                # Use backend to transpile circuits.
+                transpiled_circuits3 = {
+                    k: transpile(circuit, backend, optimization_level=3) for k, circuit in circuits.items()
+                }
+                print("TOTAL GATES AT 3:", sum(
+                    sum(qc.count_ops().values())
+                    for _, qc in transpiled_circuits3.items())
+                )
+
+                # Run task.
+                friend_size = f"{charlie_size}_{debbie_size}"
+                friend_sizes.append(friend_size)
+                print(f"Trial {trial} out of {num_trials} for task of {friend_size}")
+
+                tasks[trial][friend_size] = sampler.run(
+                    list(transpiled_circuits.values()),
+                    shots=shots,
+                )
+                print(f"Task with task ID: {tasks[trial][friend_size].job_id()}\n")
+
+    results = {setting: {"00": 0.0, "01": 0.0, "10": 0.0, "11": 0.0} for setting in settings}
+    post_processed_results: defaultdict = defaultdict(lambda: defaultdict(list))
+    for trial in tasks:
+        for friend_size, task in tasks[trial].items():
+            print(f"Processing trial {trial} for task with task ID: {task.job_id()}")
+
+            result = task.result()
+            pub_results = zip(
+                transpiled_circuits.keys(), [pub_result.data.measurement.get_counts() for pub_result in result]
+            )
+            for key, count in pub_results:
+                probabilities = {k[::-1]: v / shots for k, v in count.items()}
+                results[key] = probabilities
+            print(f"Results: {results}")
+
+            # friend_size is a string of the form "charlie_size_debbie_size".
+            charlie_size, debbie_size = map(int, friend_size.split("_"))
+
+            # Compute violations from result counts.
+            violations = compute_violations(
+                results=results,
+                charlie_size=charlie_size,
+                debbie_size=debbie_size,
+                strategy=strategy,
+                verbose=True,
+            )
+            print(f"Violations: {violations}\n")
+
+            for key in violations:
+                post_processed_results[friend_size][key].append(violations[key])
+            print(f"Post-processed results: {post_processed_results}\n")
+
+    if save:
+        save_data(
+            results=results,
+            charlie_size=charlie_size,
+            debbie_size=debbie_size,
+            trial=trial,
+            shots=shots,
+            backend=backend,
+            save_path=save_path,
+        )
+    return post_processed_results
+
+
+if __name__ == "__main__":
+    
+    def noisy_backend_factory(qc: QuantumCircuit) -> qiskit.providers.Backend:
+        noise_model = depolarizing_model(circ=qc, 
+                                         single_qubit_error_rate=0.001, 
+                                         two_qubit_error_rate=0.01,
+                                         meas_error_rate=0.01)
+        # Create noisy simulator backend
+        return AerSimulator(noise_model=noise_model)
+
+    results = run_noisy_sim_experiment(
+        shots=10_000,
+        num_trials=1,
+        charlie_sizes=range(1, 3),
+        debbie_sizes=range(1, 2),
+        strategy=MAJORITY_VOTE,
+        settings=SETTING_PAIRS,
+        backend_factory=noisy_backend_factory
+    )
+    print(results['1_1']['semi_brukner'][0])
