@@ -17,3 +17,8 @@ SETTINGS = [PEEK, REVERSE_1, REVERSE_2]
 
 # All possible pairs of settings for Alice and Bob.
 SETTING_PAIRS = [setting for setting in itertools.product(SETTINGS, repeat=2)]
+
+SEMI_BRUKNER_SETTINGS = [(PEEK, REVERSE_1),
+                         (PEEK, REVERSE_2),
+                         (REVERSE_2, REVERSE_1),
+                         (REVERSE_2, REVERSE_2)]
