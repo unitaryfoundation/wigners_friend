@@ -41,3 +41,19 @@ def test_get_depolarizing_model():
     # if no noise then this should be close to 500
     # noise should make it smaller
     assert counts_bit_flip['0000'] <= 300
+
+
+def test_get_depolarizing_model_meas_noise():
+    n_qubits = 1
+    qc = QuantumCircuit(n_qubits)
+    qc.x(0)
+    qc.measure_all()
+
+    # make just measurement noise
+    noise_model = depolarizing_model(circ=qc, single_qubit_error_rate=0, two_qubit_error_rate=0, meas_error_rate=0.5)
+    # Create noisy simulator backend
+    sim_noise = AerSimulator(noise_model=noise_model)
+    # Run noisy simulation for 1k shots
+    result_noise = sim_noise.run(qc).result()
+    counts_bit_flip = result_noise.get_counts()['0']
+    assert 400 <= counts_bit_flip <= 600
