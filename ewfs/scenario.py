@@ -230,7 +230,7 @@ if __name__ == "__main__":
         alice_setting=PEEK,
         bob_setting=PEEK,
         strategy=RANDOM,
-        behavior=GHZ,
+        behavior=CNOT_LADDER,
         charlie_size=5,
         debbie_size=1,
     )
