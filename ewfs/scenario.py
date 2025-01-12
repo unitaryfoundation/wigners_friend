@@ -4,8 +4,9 @@ import random
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 
-from ewfs.circuit import cnot_ladder
+from ewfs.circuit import cnot_ladder, ibm_fez_ghz_circuit
 from ewfs.observer import ALICE, BOB, DEFAULT_ANGLES, DEFAULT_BETA
+from ewfs.behavior import CNOT_LADDER, GHZ
 from ewfs.strategy import MAJORITY_VOTE, RANDOM
 from ewfs.setting import PEEK, REVERSE_1, REVERSE_2
 
@@ -16,6 +17,7 @@ class EWFS:
         alice_setting: str,
         bob_setting: str,
         strategy: str,
+        behavior: str,
         charlie_size: int,
         debbie_size: int,
         alice_size: int = 1,
@@ -30,6 +32,9 @@ class EWFS:
 
         # Strategy for the friend.
         self.strategy = strategy
+
+        # Behavior for the friend.
+        self.behavior = behavior
 
         # Sizes of the qubit systems.
         self.alice_size = alice_size
@@ -64,8 +69,8 @@ class EWFS:
         self._ewfs_rotation(qc, ALICE, self.angles[PEEK])
         self._ewfs_rotation(qc, BOB, self.beta - self.angles[PEEK])
 
-        # Apply the CNOT ladders based on the strategy.
-        self._apply_cnot_ladders(qc)
+        # Apply behavior for the friends (Charlie and Debbie).
+        self._apply_behavior(qc)
 
         # Apply the setting for Alice/Charlie.
         self._apply_setting(
@@ -92,18 +97,24 @@ class EWFS:
 
     def _initialize_measurement_registers(self) -> tuple:
         """Initialize the classical measurement registers based on the strategy."""
-        if self.strategy is MAJORITY_VOTE:
-            if self.alice_setting is PEEK and self.bob_setting is not PEEK:
-                measurement = ClassicalRegister(self.charlie_size + 1, name="measurement")
-                alice_creg = list(range(self.charlie_size))
-                bob_creg = [self.charlie_size]
-            else:
-                measurement = ClassicalRegister(self.meas_size, name="measurement")
-                alice_creg, bob_creg = [0], [1]
+        if self.behavior is CNOT_LADDER:
+            if self.strategy is MAJORITY_VOTE:
+                if self.alice_setting is PEEK and self.bob_setting is not PEEK:
+                    measurement = ClassicalRegister(self.charlie_size + 1, name="measurement")
+                    alice_creg = list(range(self.charlie_size))
+                    bob_creg = [self.charlie_size]
+                else:
+                    measurement = ClassicalRegister(self.meas_size, name="measurement")
+                    alice_creg, bob_creg = [0], [1]
 
-        elif self.strategy is RANDOM:
+            elif self.strategy is RANDOM:
+                measurement = ClassicalRegister(self.sys_size, name="measurement")
+                alice_creg, bob_creg = [0], [0]
+
+        elif self.behavior is GHZ:
+            # I don't know what to do here.
             measurement = ClassicalRegister(self.sys_size, name="measurement")
-            alice_creg, bob_creg = [0], [0]
+            alice_creg, bob_creg = [0], [1]
 
         alice, bob, charlie, debbie = [
             QuantumRegister(size, name=name)
@@ -121,14 +132,24 @@ class EWFS:
         qc.h(ALICE)
         qc.cx(ALICE, BOB)
 
-    def _apply_cnot_ladders(self, qc: QuantumCircuit) -> None:
-        """Apply the CNOT ladders based on the strategy."""
-        if self.strategy is MAJORITY_VOTE:
-            cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size, reverse=False, internal_copy=True)
-            cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size, reverse=False, internal_copy=True)
-        elif self.strategy is RANDOM:
-            cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size)
-            cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size)
+    def _apply_behavior(self, qc: QuantumCircuit) -> None:
+        """Apply the behavior for Charlie and Debbie."""
+        if self.behavior is CNOT_LADDER:
+            if self.strategy is MAJORITY_VOTE:
+                cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size, reverse=False, internal_copy=True)
+                cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size, reverse=False, internal_copy=True)
+            elif self.strategy is RANDOM:
+                cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size)
+                cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size)
+        elif self.behavior is GHZ:
+            ghz_circuit_charlie = ibm_fez_ghz_circuit(self.charlie_size)
+            ghz_circuit_debbie = ibm_fez_ghz_circuit(self.debbie_size)
+
+            alice_charlie_qubits = [ALICE] + self.charlie_qubits
+            qc.compose(ghz_circuit_charlie, qubits=alice_charlie_qubits, inplace=True)
+
+            bob_debbie_qubits = [BOB] + self.debbie_qubits
+            qc.compose(ghz_circuit_debbie, qubits=bob_debbie_qubits, inplace=True)
 
     def _apply_setting(
         self,
@@ -167,11 +188,16 @@ class EWFS:
     ) -> None:
         qc.barrier(observer, friend_qubits)
 
-        # Apply the CNOT ladder based on the strategy.
-        if self.strategy is MAJORITY_VOTE:
-            cnot_ladder(qc, observer, friend_qubits[0], friend_size, reverse=True, internal_copy=True)
-        elif self.strategy is RANDOM:
-            cnot_ladder(qc, observer, friend_qubits[0], friend_size)
+        # Apply the appropriate behavior.
+        if self.behavior is CNOT_LADDER:
+            if self.strategy is MAJORITY_VOTE:
+                cnot_ladder(qc, observer, friend_qubits[0], friend_size, reverse=True, internal_copy=True)
+            elif self.strategy is RANDOM:
+                cnot_ladder(qc, observer, friend_qubits[0], friend_size)
+        elif self.behavior is GHZ:
+            ghz_circuit = ibm_fez_ghz_circuit(friend_size)
+            observer_friend_qubits = [observer] + friend_qubits
+            qc.compose(ghz_circuit, qubits=observer_friend_qubits, inplace=True)
 
         # Apply the rotation based on the observer.
         if observer is ALICE:
@@ -196,3 +222,17 @@ class EWFS:
         else:
             qc.h(observer)
             qc.rz(angle, observer)
+
+
+if __name__ == "__main__":
+    # Example usage of the EWFS class.
+    ewfs = EWFS(
+        alice_setting=PEEK,
+        bob_setting=PEEK,
+        strategy=RANDOM,
+        behavior=GHZ,
+        charlie_size=5,
+        debbie_size=1,
+    )
+    qc = ewfs.circuit()
+    print(qc)

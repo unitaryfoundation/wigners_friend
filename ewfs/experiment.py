@@ -17,6 +17,7 @@ def run_experiment(
     charlie_sizes: range | None = None,
     debbie_sizes: range | None = None,
     strategy: str = "majority_vote",
+    behavior: str = "cnot_ladder",
     backend: qiskit.providers.Backend | None = None,
     settings: list[tuple[str, ...]] | None = None,
     save: bool = False,
@@ -46,6 +47,7 @@ def run_experiment(
                     circuit = EWFS(
                         alice_setting=alice_setting,
                         bob_setting=bob_setting,
+                        behavior=behavior,
                         strategy=strategy,
                         charlie_size=charlie_size,
                         debbie_size=debbie_size,
