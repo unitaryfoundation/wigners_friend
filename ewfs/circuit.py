@@ -1,6 +1,6 @@
 """This module contains utility functions for constructing quantum circuits."""
 
-from qiskit import QuantumCircuit
+from qiskit import QuantumCircuit, QuantumRegister
 from qiskit.providers.fake_provider import GenericBackendV2
 from ewfs.ghz import GHZCircuitBuilder
 
@@ -47,11 +47,20 @@ def cnot_ladder(
                 qc.cx(observer, friend_qubit + i)
 
 
-def ibm_fez_ghz_circuit(friend_size: int, num_ghz_qubits: int = 30) -> QuantumCircuit:
-    """GHZ circuit for the IBM FEZ backend.
+def ibm_fez_ghz_circuit(friend_size: int, num_ghz_qubits: int = 54, friend_label: str = "Charlie") -> QuantumCircuit:
+    """GHZ circuit for the IBM FEZ backend with labeled qubits.
 
-    Note: This circuit is specific to the IBM FEZ backend and coupling map.
+    Args:
+        friend_size: The number of friend qubits to label.
+        num_ghz_qubits: Total number of qubits in the GHZ circuit.
+        friend_label: Prefix label for the friend qubits (default: 'Charlie').
+
+    Returns:
+        QuantumCircuit: A quantum circuit with labeled friend qubits and ancilla qubits.
     """
+    if friend_size > num_ghz_qubits:
+        raise ValueError(f"{friend_size=} cannot exceed {num_ghz_qubits=}.")
+
     backend = GenericBackendV2(num_qubits=156)
     if num_ghz_qubits == 30:
         qubits_to_remove = [56]
@@ -93,5 +102,23 @@ def ibm_fez_ghz_circuit(friend_size: int, num_ghz_qubits: int = 30) -> QuantumCi
         flags_physical=flags_physical,
     )
     build_result = ghz_builder.build()
+    circuit: QuantumCircuit = build_result["circuit_with_flags"]
 
-    return build_result["circuit_with_flags"]
+    # Create a new QuantumRegister with labeled friend qubits.
+    friend_register = QuantumRegister(friend_size, name=friend_label)
+
+    # Create an ancilla register for the remaining qubits
+    num_ancilla_qubits = circuit.num_qubits - friend_size
+    if num_ancilla_qubits < 0:
+        raise ValueError("Number of ancilla qubits cannot be negative.")
+    ancilla_register = QuantumRegister(num_ancilla_qubits, name=f"{friend_label}_ancilla")
+
+    # Create a new circuit with both registers.
+    new_circuit = QuantumCircuit(friend_register, ancilla_register)
+
+    # Compose the original circuit into the new circuit.
+    if len(new_circuit.qubits) != circuit.num_qubits:
+        raise ValueError("Mismatch in the number of qubits between the circuits.")
+    new_circuit.compose(circuit, qubits=list(range(circuit.num_qubits)), inplace=True)
+
+    return new_circuit
