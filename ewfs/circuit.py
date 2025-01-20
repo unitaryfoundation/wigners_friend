@@ -47,6 +47,81 @@ def cnot_ladder(
                 qc.cx(observer, friend_qubit + i)
 
 
+def ghz_ewfs_circuit(qc: QuantumCircuit, charlie_size: int, debbie_size: int) -> QuantumCircuit:
+    """EWFS with GHZ friend states.
+
+    Constructs a quantum circuit for an extended Wigner's friend scenario (EWFS) with
+    GHZ states prepared for Charlie and Debbie, and includes control operations from Alice to Charlie
+    and Bob to Debbie.
+
+    This function combines an initial circuit (`qc`) with GHZ circuits for two friends, Charlie and Debbie.
+    Control operations (CNOT gates) from Alice to Charlie and Bob to Debbie are applied
+    before the respective GHZ circuits are composed.
+
+    Args:
+        qc (QuantumCircuit): The initial quantum circuit containing operations for Alice and Bob.
+        charlie_size (int): The number of qubits in Charlie's subsystem.
+        debbie_size (int): The number of qubits in Debbie's subsystem.
+
+    Returns:
+        QuantumCircuit: A combined quantum circuit with the initial operations, control gates, and GHZ circuits
+                        for Charlie and Debbie.
+
+    Circuit Description:
+    - The input circuit (`qc`) is composed first and includes operations for Alice and Bob.
+    - A CNOT gate is added from Alice to the first qubit in Charlie's subsystem.
+    - A GHZ circuit is composed for Charlie's subsystem.
+    - A CNOT gate is added from Bob to the first qubit in Debbie's subsystem.
+    - A GHZ circuit is composed for Debbie's subsystem.
+    - Barriers are added for visual clarity and to separate operations logically in the circuit diagram.
+    """
+    # Compose Charlie's GHZ circuit
+    charlie_ghz_qc = ibm_fez_ghz_circuit(charlie_size, friend_label="Charlie")
+    debbie_ghz_qc = ibm_fez_ghz_circuit(debbie_size, friend_label="Debbie")
+
+    circuits = [qc, charlie_ghz_qc, debbie_ghz_qc]
+    combined_circuit = QuantumCircuit(
+        *[qreg for circuit in circuits for qreg in circuit.qregs],
+        *[creg for circuit in circuits for creg in circuit.cregs],
+    )
+
+    # Compose `qc` first (it includes Alice and Bob)
+    combined_circuit.compose(qc, inplace=True)
+    combined_circuit.barrier()
+
+    # Add CNOT gates before Charlie's GHZ circuit
+    alice_qubit = combined_circuit.qubits[0]  # Assuming Alice is the first qubit in qc
+    bob_qubit = combined_circuit.qubits[1]  # Assuming Bob is the second qubit in qc
+    charlie_0_qubit = combined_circuit.qubits[len(qc.qubits)]  # First qubit of Charlie (before GHZ circuit)
+    debbie_0_qubit = combined_circuit.qubits[len(qc.qubits) + len(charlie_ghz_qc.qubits)]  # First qubit of Debbie
+
+    combined_circuit.cx(alice_qubit, charlie_0_qubit)  # CNOT from Alice to Charlie_0
+    combined_circuit.barrier()  # Separate before GHZ circuit composition for Charlie
+
+    # Offset for Charlie registers
+    charlie_qubit_offset = len(qc.qubits)
+    combined_circuit.compose(
+        charlie_ghz_qc,
+        qubits=range(charlie_qubit_offset, charlie_qubit_offset + charlie_ghz_qc.num_qubits),
+        inplace=True,
+    )
+    combined_circuit.barrier()
+
+    # Add CNOT gate before Debbie's GHZ circuit
+    combined_circuit.cx(bob_qubit, debbie_0_qubit)  # CNOT from Bob to Debbie_0
+    combined_circuit.barrier()  # Separate before GHZ circuit composition for Debbie
+
+    # Offset for Debbie registers
+    debbie_qubit_offset = charlie_qubit_offset + len(charlie_ghz_qc.qubits)
+    combined_circuit.compose(
+        debbie_ghz_qc,
+        qubits=range(debbie_qubit_offset, debbie_qubit_offset + debbie_ghz_qc.num_qubits),
+        inplace=True,
+    )
+
+    return combined_circuit
+
+
 def ibm_fez_ghz_circuit(friend_size: int, num_ghz_qubits: int = 54, friend_label: str = "Charlie") -> QuantumCircuit:
     """GHZ circuit for the IBM FEZ backend with labeled qubits.
 
@@ -104,10 +179,13 @@ def ibm_fez_ghz_circuit(friend_size: int, num_ghz_qubits: int = 54, friend_label
     build_result = ghz_builder.build()
     circuit: QuantumCircuit = build_result["circuit_with_flags"]
 
-    # Create a new QuantumRegister with labeled friend qubits.
+    if friend_size == 1:
+        friend_label = f"{friend_label}_0"
+
+    # Create the friend register with the adjusted label.
     friend_register = QuantumRegister(friend_size, name=friend_label)
 
-    # Create an ancilla register for the remaining qubits
+    # Create an ancilla register for the remaining qubits.
     num_ancilla_qubits = circuit.num_qubits - friend_size
     if num_ancilla_qubits < 0:
         raise ValueError("Number of ancilla qubits cannot be negative.")
