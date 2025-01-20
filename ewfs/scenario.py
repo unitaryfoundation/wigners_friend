@@ -200,7 +200,10 @@ class EWFS:
             elif self.strategy is RANDOM:
                 cnot_ladder(qc, observer, friend_qubits[0], friend_size)
         elif self.friend_state is GHZ:
-            raise ValueError("Reverse setting is not supported for GHZ state (at this time).")
+            # Reverse GHZ state preparation
+            for i in range(friend_size - 1, 0, -1):
+                qc.cx(friend_qubits[i - 1], friend_qubits[i])  # Reverse CNOT gates
+            qc.h(friend_qubits[0])  # Reverse Hadamard gate on the first qubit
 
         # Apply the rotation based on the observer.
         if observer is ALICE:
