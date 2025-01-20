@@ -56,7 +56,7 @@ def ghz_ewfs_circuit(qc: QuantumCircuit, charlie_size: int, debbie_size: int) ->
 
     This function combines an initial circuit (`qc`) with GHZ circuits for two friends, Charlie and Debbie.
     Control operations (CNOT gates) from Alice to Charlie and Bob to Debbie are applied
-    before the respective GHZ circuits are composed.
+    directly after their respective GHZ circuits are composed.
 
     Args:
         qc (QuantumCircuit): The initial quantum circuit containing operations for Alice and Bob.
@@ -96,7 +96,8 @@ def ghz_ewfs_circuit(qc: QuantumCircuit, charlie_size: int, debbie_size: int) ->
     debbie_0_qubit = combined_circuit.qubits[len(qc.qubits) + len(charlie_ghz_qc.qubits)]  # First qubit of Debbie
 
     combined_circuit.cx(alice_qubit, charlie_0_qubit)  # CNOT from Alice to Charlie_0
-    combined_circuit.barrier()  # Separate before GHZ circuit composition for Charlie
+    combined_circuit.cx(bob_qubit, debbie_0_qubit)  # CNOT from Bob to Debbie_0
+    combined_circuit.barrier()
 
     # Offset for Charlie registers
     charlie_qubit_offset = len(qc.qubits)
@@ -106,10 +107,6 @@ def ghz_ewfs_circuit(qc: QuantumCircuit, charlie_size: int, debbie_size: int) ->
         inplace=True,
     )
     combined_circuit.barrier()
-
-    # Add CNOT gate before Debbie's GHZ circuit
-    combined_circuit.cx(bob_qubit, debbie_0_qubit)  # CNOT from Bob to Debbie_0
-    combined_circuit.barrier()  # Separate before GHZ circuit composition for Debbie
 
     # Offset for Debbie registers
     debbie_qubit_offset = charlie_qubit_offset + len(charlie_ghz_qc.qubits)
