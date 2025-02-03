@@ -228,3 +228,16 @@ class EWFS:
         else:
             qc.h(observer)
             qc.rz(angle, observer)
+
+
+if __name__ == "__main__":
+    ewfs = EWFS(
+        alice_setting=PEEK,
+        bob_setting=PEEK,
+        strategy=RANDOM,
+        friend_state=GHZ,
+        charlie_size=3,
+        debbie_size=1,
+    )
+    qc = ewfs.circuit()
+    print(qc)

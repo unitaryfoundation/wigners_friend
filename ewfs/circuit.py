@@ -176,17 +176,19 @@ def ibm_fez_ghz_circuit(friend_size: int, num_ghz_qubits: int = 54, friend_label
     build_result = ghz_builder.build()
     circuit: QuantumCircuit = build_result["circuit_with_flags"]
 
-    if friend_size == 1:
-        friend_label = f"{friend_label}_0"
+    # If there is just one element, append a zero to the label.
+    friend_register_label = f"{friend_label}_0" if friend_size == 1 else friend_label
 
     # Create the friend register with the adjusted label.
-    friend_register = QuantumRegister(friend_size, name=friend_label)
+    friend_register = QuantumRegister(friend_size, name=friend_register_label)
 
     # Create an ancilla register for the remaining qubits.
     num_ancilla_qubits = circuit.num_qubits - friend_size
     if num_ancilla_qubits < 0:
         raise ValueError("Number of ancilla qubits cannot be negative.")
-    ancilla_register = QuantumRegister(num_ancilla_qubits, name=f"{friend_label}_ancilla")
+
+    friend_ancilla_label = f"{friend_label}_flag_0" if num_ancilla_qubits == 1 else f"{friend_label}_flag"
+    ancilla_register = QuantumRegister(num_ancilla_qubits, name=friend_ancilla_label)
 
     # Create a new circuit with both registers.
     new_circuit = QuantumCircuit(friend_register, ancilla_register)
