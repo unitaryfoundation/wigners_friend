@@ -4,7 +4,7 @@ import random
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 
-from ewfs.circuit import cnot_ladder, ghz_ewfs_circuit
+from ewfs.circuit import cnot_ladder, ghz_ewfs_circuit, extract_qiskit_indices_by_prefix
 from ewfs.observer import ALICE, BOB, DEFAULT_ANGLES, DEFAULT_BETA
 from ewfs.friend_state import CNOT_LADDER, GHZ
 from ewfs.strategy import MAJORITY_VOTE, RANDOM
@@ -49,10 +49,8 @@ class EWFS:
         self.angles = angles or DEFAULT_ANGLES
         self.beta = beta or DEFAULT_BETA
 
-        self.charlie_qubits = list(range(self.sys_size, (self.sys_size + self.charlie_size)))
-        self.debbie_qubits = list(
-            range(self.sys_size + self.charlie_size, self.sys_size + (self.charlie_size + self.debbie_size))
-        )
+        self.charlie_qubits: list[int] = []
+        self.debbie_qubits: list[int] = []
 
     def circuit(self) -> QuantumCircuit:
         """Generate the circuit for extended Wigner's friend scenario."""
@@ -146,6 +144,8 @@ class EWFS:
     def _apply_friend_state(self, qc: QuantumCircuit) -> QuantumCircuit:
         """Apply the state for the friends Charlie and Debbie."""
         if self.friend_state is CNOT_LADDER:
+            self.charlie_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie")
+            self.debbie_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie")
             if self.strategy is MAJORITY_VOTE:
                 cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size, reverse=False, internal_copy=True)
                 cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size, reverse=False, internal_copy=True)
@@ -154,7 +154,10 @@ class EWFS:
                 cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size)
             return qc
         elif self.friend_state is GHZ:
-            return ghz_ewfs_circuit(qc, self.charlie_size, self.debbie_size)
+            qc = ghz_ewfs_circuit(qc, self.charlie_size, self.debbie_size)
+            self.charlie_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie")
+            self.debbie_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie")
+            return qc
 
     def _apply_setting(
         self,
@@ -237,7 +240,7 @@ if __name__ == "__main__":
         strategy=RANDOM,
         friend_state=GHZ,
         charlie_size=3,
-        debbie_size=1,
+        debbie_size=3,
     )
     qc = ewfs.circuit()
     print(qc)
