@@ -56,7 +56,6 @@ class EWFS:
         """Generate the circuit for extended Wigner's friend scenario."""
         # Create the Quantum Circuit with the defined registers
         qc = self._initialize_circuit()
-        alice_creg, bob_creg = self._get_classical_registers()
 
         # Prepare the bipartite system for the observers (Alice and Bob).
         self._prepare_bipartite_system(qc)
@@ -67,6 +66,8 @@ class EWFS:
 
         # Apply state for the friends (Charlie and Debbie).
         qc = self._apply_friend_state(qc)
+
+        alice_creg, bob_creg = self._get_classical_registers()
 
         # Apply the setting for Alice/Charlie.
         self._apply_setting(
@@ -124,14 +125,19 @@ class EWFS:
 
     def _get_classical_registers(self) -> tuple:
         """Define the classical registers for the observers."""
-        if self.strategy is MAJORITY_VOTE:
-            if self.alice_setting is PEEK and self.bob_setting is not PEEK:
-                alice_creg = list(range(self.charlie_size))
-                bob_creg = [self.charlie_size]
-            else:
-                alice_creg, bob_creg = [0], [1]
-        elif self.strategy is RANDOM:
-            alice_creg, bob_creg = [0], [0]
+        if self.friend_state is CNOT_LADDER:
+            if self.strategy is MAJORITY_VOTE:
+                if self.alice_setting is PEEK and self.bob_setting is not PEEK:
+                    alice_creg = list(range(self.charlie_size))
+                    bob_creg = [self.charlie_size]
+                else:
+                    alice_creg, bob_creg = [0], [1]
+            elif self.strategy is RANDOM:
+                alice_creg, bob_creg = [0], [0]
+        elif self.friend_state is GHZ:
+            # TODO: Fix
+            alice_creg, bob_creg = [0], [1]
+
         return alice_creg, bob_creg
 
     def _prepare_bipartite_system(self, qc: QuantumCircuit) -> None:
@@ -236,11 +242,11 @@ class EWFS:
 if __name__ == "__main__":
     ewfs = EWFS(
         alice_setting=PEEK,
-        bob_setting=PEEK,
-        strategy=RANDOM,
+        bob_setting=REVERSE_1,
+        strategy=MAJORITY_VOTE,
         friend_state=GHZ,
         charlie_size=3,
-        debbie_size=3,
+        debbie_size=1,
     )
     qc = ewfs.circuit()
     print(qc)

@@ -5,13 +5,26 @@ from qiskit.providers.fake_provider import GenericBackendV2
 from ewfs.ghz import GHZCircuitBuilder
 
 
-def extract_qiskit_indices_by_prefix(circuit: QuantumCircuit, prefix: str) -> list[int]:
-    """Extracts qubit indicies of a qiskit circuit with a label `prefix."""
+def extract_qiskit_indices_by_prefix(circuit: QuantumCircuit, prefix: str, exact_match: bool = True) -> list[int]:
+    """Extracts qubit indices of a qiskit circuit based on an exact or prefix match.
+
+    Args:
+        circuit (QuantumCircuit): The quantum circuit.
+        prefix (str): The prefix of the register name (e.g., "Charlie", "Charlie_flag").
+        exact_match (bool): If True, matches only exact register names (not substrings).
+
+    Returns:
+        list[int]: List of qubit indices matching the given prefix.
+    """
     indices = []
     for idx, qubit in enumerate(circuit.qubits):
         reg = qubit._register
-        if reg.name.startswith(prefix):
-            indices.append(idx)
+        if exact_match:
+            if reg.name == prefix:
+                indices.append(idx)
+        else:
+            if reg.name.startswith(prefix):
+                indices.append(idx)
     return indices
 
 
