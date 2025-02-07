@@ -4,10 +4,31 @@ import random
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 
-from ewfs.circuit import cnot_ladder
+from ewfs.circuit import (
+    cnot_ladder,
+    ghz_ewfs_circuit,
+    extract_qiskit_indices_by_prefix,
+    ibm_fez_ghz_circuit,
+)
 from ewfs.observer import ALICE, BOB, DEFAULT_ANGLES, DEFAULT_BETA
+from ewfs.friend_state import CNOT_LADDER, GHZ
 from ewfs.strategy import MAJORITY_VOTE, RANDOM
 from ewfs.setting import PEEK, REVERSE_1, REVERSE_2
+
+
+class Friend:
+    def __init__(self, size: int, qubits: list[int], label: str, flag_qubits: list[int]) -> None:
+        """Initialize the friend.
+
+        Attributes:
+            size: The size of the friend's subsystem.
+            qubits: The indices of the qubits in the friend's subsystem.
+            label: The label of the friend.
+        """
+        self.size = size
+        self.qubits = qubits
+        self.flag_qubits = flag_qubits
+        self.label = label
 
 
 class EWFS:
@@ -16,6 +37,7 @@ class EWFS:
         alice_setting: str,
         bob_setting: str,
         strategy: str,
+        friend_state: str,
         charlie_size: int,
         debbie_size: int,
         alice_size: int = 1,
@@ -31,6 +53,9 @@ class EWFS:
         # Strategy for the friend.
         self.strategy = strategy
 
+        # State for the friend.
+        self.friend_state = friend_state
+
         # Sizes of the qubit systems.
         self.alice_size = alice_size
         self.bob_size = bob_size
@@ -44,18 +69,16 @@ class EWFS:
         self.angles = angles or DEFAULT_ANGLES
         self.beta = beta or DEFAULT_BETA
 
-        self.charlie_qubits = list(range(self.sys_size, (self.sys_size + self.charlie_size)))
-        self.debbie_qubits = list(
-            range(self.sys_size + self.charlie_size, self.sys_size + (self.charlie_size + self.debbie_size))
-        )
+        self.charlie_qubits: list[int] = []
+        self.debbie_qubits: list[int] = []
+
+        self.charlie_flag_qubits: list[int] = []
+        self.debbie_flag_qubits: list[int] = []
 
     def circuit(self) -> QuantumCircuit:
         """Generate the circuit for extended Wigner's friend scenario."""
-        # Define quantum registers
-        alice, bob, charlie, debbie, measurement, alice_creg, bob_creg = self._initialize_measurement_registers()
-
         # Create the Quantum Circuit with the defined registers
-        qc = QuantumCircuit(alice, bob, charlie, debbie, measurement)
+        qc = self._initialize_circuit()
 
         # Prepare the bipartite system for the observers (Alice and Bob).
         self._prepare_bipartite_system(qc)
@@ -64,8 +87,17 @@ class EWFS:
         self._ewfs_rotation(qc, ALICE, self.angles[PEEK])
         self._ewfs_rotation(qc, BOB, self.beta - self.angles[PEEK])
 
-        # Apply the CNOT ladders based on the strategy.
-        self._apply_cnot_ladders(qc)
+        # Apply state for the friends (Charlie and Debbie).
+        qc = self._apply_friend_state(qc)
+
+        alice_creg, bob_creg = self._get_classical_registers()
+
+        charlie = Friend(
+            size=self.charlie_size, qubits=self.charlie_qubits, flag_qubits=self.charlie_flag_qubits, label="Charlie"
+        )
+        debbie = Friend(
+            size=self.debbie_size, qubits=self.debbie_qubits, flag_qubits=self.debbie_flag_qubits, label="Debbie"
+        )
 
         # Apply the setting for Alice/Charlie.
         self._apply_setting(
@@ -74,8 +106,7 @@ class EWFS:
             setting=self.alice_setting,
             angle=self.angles[self.alice_setting],
             observer_creg=alice_creg,
-            friend_qubits=self.charlie_qubits,
-            friend_size=self.charlie_size,
+            friend=charlie,
         )
         # Apply the setting for Bob/Debbie.
         self._apply_setting(
@@ -84,35 +115,67 @@ class EWFS:
             setting=self.bob_setting,
             angle=(self.beta - self.angles[self.bob_setting]),
             observer_creg=bob_creg,
-            friend_qubits=self.debbie_qubits,
-            friend_size=self.debbie_size,
+            friend=debbie,
         )
+
+        # Adding classical flag registers and measurements of the flag qubits here if GHZ setting is used.
+        if self.friend_state == GHZ:
+            creg_debbie_flag_qubits = ClassicalRegister(len(self.debbie_flag_qubits), "debbie_flag_qubits")
+            creg_charlie_flag_qubits = ClassicalRegister(len(self.charlie_flag_qubits), "charlie_flag_qubits")
+
+            qc.add_register(creg_debbie_flag_qubits)
+            qc.add_register(creg_charlie_flag_qubits)
+
+            # Now we measure the flag qubits.
+            qc.measure(self.charlie_flag_qubits, creg_charlie_flag_qubits)
+            qc.measure(self.debbie_flag_qubits, creg_debbie_flag_qubits)
 
         return qc
 
-    def _initialize_measurement_registers(self) -> tuple:
+    def _initialize_circuit(self) -> QuantumCircuit:
         """Initialize the classical measurement registers based on the strategy."""
+        if self.friend_state is CNOT_LADDER:
+            if self.strategy is MAJORITY_VOTE:
+                if self.alice_setting is PEEK and self.bob_setting is not PEEK:
+                    measurement = ClassicalRegister(self.charlie_size + 1, name="measurement")
+                else:
+                    measurement = ClassicalRegister(self.meas_size, name="measurement")
+
+            elif self.strategy is RANDOM:
+                measurement = ClassicalRegister(self.sys_size, name="measurement")
+
+            alice, bob, charlie, debbie = [
+                QuantumRegister(size, name=name)
+                for size, name in zip(
+                    [self.alice_size, self.bob_size, self.charlie_size, self.debbie_size],
+                    ["Alice", "Bob", "Charlie", "Debbie"],
+                )
+            ]
+
+            return QuantumCircuit(alice, bob, charlie, debbie, measurement)
+
+        elif self.friend_state is GHZ:
+            # For the GHZ case, we just initialize the circuit for Alice and Bob now and deal with the friends later.
+            measurement = ClassicalRegister(self.meas_size, name="measurement")
+            alice, bob = [
+                QuantumRegister(size, name=name)
+                for size, name in zip([self.alice_size, self.bob_size], ["Alice", "Bob"])
+            ]
+            return QuantumCircuit(alice, bob, measurement)
+
+    def _get_classical_registers(self) -> tuple:
+        """Define the classical registers for the observers."""
+        alice_creg, bob_creg = [], []
         if self.strategy is MAJORITY_VOTE:
             if self.alice_setting is PEEK and self.bob_setting is not PEEK:
-                measurement = ClassicalRegister(self.charlie_size + 1, name="measurement")
                 alice_creg = list(range(self.charlie_size))
                 bob_creg = [self.charlie_size]
             else:
-                measurement = ClassicalRegister(self.meas_size, name="measurement")
                 alice_creg, bob_creg = [0], [1]
-
         elif self.strategy is RANDOM:
-            measurement = ClassicalRegister(self.sys_size, name="measurement")
             alice_creg, bob_creg = [0], [0]
 
-        alice, bob, charlie, debbie = [
-            QuantumRegister(size, name=name)
-            for size, name in zip(
-                [self.alice_size, self.bob_size, self.charlie_size, self.debbie_size],
-                ["Alice's qubit", "Bob's qubit", "Charlie", "Debbie"],
-            )
-        ]
-        return alice, bob, charlie, debbie, measurement, alice_creg, bob_creg
+        return alice_creg, bob_creg
 
     def _prepare_bipartite_system(self, qc: QuantumCircuit) -> None:
         """Generates the state: 1/sqrt(2) * (|01> - |10>)"""
@@ -121,14 +184,33 @@ class EWFS:
         qc.h(ALICE)
         qc.cx(ALICE, BOB)
 
-    def _apply_cnot_ladders(self, qc: QuantumCircuit) -> None:
-        """Apply the CNOT ladders based on the strategy."""
-        if self.strategy is MAJORITY_VOTE:
+    def _apply_cnot_ladder_state(self, qc: QuantumCircuit) -> None:
+        """CNOT ladder state for Charlie and Debbie."""
+        self.charlie_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie")
+        self.debbie_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie")
+
+        if self.strategy == MAJORITY_VOTE:
             cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size, reverse=False, internal_copy=True)
             cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size, reverse=False, internal_copy=True)
-        elif self.strategy is RANDOM:
+        elif self.strategy == RANDOM:
             cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size)
             cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size)
+
+    def _apply_ghz_state(self, qc: QuantumCircuit) -> None:
+        """GHZ friend state for Charlie and Debbie."""
+        qc = ghz_ewfs_circuit(qc, self.charlie_size, self.debbie_size)
+        self.charlie_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie")
+        self.debbie_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie")
+        self.charlie_flag_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie_flag")
+        self.debbie_flag_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie_flag")
+
+    def _apply_friend_state(self, qc: QuantumCircuit) -> QuantumCircuit:
+        """Apply the state for the friends Charlie and Debbie."""
+        if self.friend_state == CNOT_LADDER:
+            self._apply_cnot_ladder_state(qc)
+        elif self.friend_state == GHZ:
+            self._apply_ghz_state(qc)
+        return qc
 
     def _apply_setting(
         self,
@@ -137,41 +219,41 @@ class EWFS:
         setting: str,
         angle: float,
         observer_creg: list[int],
-        friend_qubits: list[int],
-        friend_size: int,
+        friend: Friend,
     ):
         """Apply either the PEEK or REVERSE_1/REVERSE_2 settings."""
         if setting is PEEK:
-            self._apply_peek(qc, observer, observer_creg, friend_qubits, friend_size)
+            self._apply_peek(qc, observer, observer_creg, friend)
         elif setting in [REVERSE_1, REVERSE_2]:
-            self._apply_reverse(qc, observer, observer_creg, friend_qubits, friend_size, angle)
+            self._apply_reverse(qc, observer, observer_creg, friend, angle)
 
-    def _apply_peek(
-        self, qc: QuantumCircuit, observer: int, observer_creg: list[int], friend_qubits: list[int], friend_size: int
-    ) -> None:
+    def _apply_peek(self, qc: QuantumCircuit, observer: int, observer_creg: list[int], friend: Friend) -> None:
         if self.strategy is MAJORITY_VOTE:
             # Ask friend for the outcome.
-            qc.measure(friend_qubits, observer_creg)
+            qc.measure(friend.qubits, observer_creg)
         elif self.strategy is RANDOM:
-            random_offset = random.randint(0, friend_size - 1)
-            qc.measure(friend_qubits[0] + random_offset, observer)
+            random_offset = random.randint(0, friend.size - 1)
+            qc.measure(friend.qubits[0] + random_offset, observer)
 
     def _apply_reverse(
         self,
         qc: QuantumCircuit,
         observer: int,
         observer_creg: list[int],
-        friend_qubits: list[int],
-        friend_size: int,
+        friend: Friend,
         angle: float,
     ) -> None:
-        qc.barrier(observer, friend_qubits)
+        qc.barrier(observer, friend.qubits)
 
-        # Apply the CNOT ladder based on the strategy.
-        if self.strategy is MAJORITY_VOTE:
-            cnot_ladder(qc, observer, friend_qubits[0], friend_size, reverse=True, internal_copy=True)
-        elif self.strategy is RANDOM:
-            cnot_ladder(qc, observer, friend_qubits[0], friend_size)
+        # Apply the appropriate friend state.
+        if self.friend_state is CNOT_LADDER:
+            if self.strategy is MAJORITY_VOTE:
+                cnot_ladder(qc, observer, friend.qubits[0], friend.size, reverse=True, internal_copy=True)
+            elif self.strategy is RANDOM:
+                cnot_ladder(qc, observer, friend.qubits[0], friend.size)
+        elif self.friend_state is GHZ:
+            friend_ghz_qc = ibm_fez_ghz_circuit(friend.size, friend_label=friend.label).inverse()
+            qc.compose(friend_ghz_qc, qubits=friend.qubits + friend.flag_qubits, inplace=True)
 
         # Apply the rotation based on the observer.
         if observer is ALICE:
@@ -196,3 +278,16 @@ class EWFS:
         else:
             qc.h(observer)
             qc.rz(angle, observer)
+
+
+if __name__ == "__main__":
+    ewfs = EWFS(
+        alice_setting=PEEK,
+        bob_setting=REVERSE_1,
+        strategy=RANDOM,
+        friend_state=GHZ,
+        charlie_size=3,
+        debbie_size=1,
+    )
+    qc = ewfs.circuit()
+    print(qc)
