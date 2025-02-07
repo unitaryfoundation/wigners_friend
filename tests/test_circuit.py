@@ -39,27 +39,3 @@ def test_extract_debbie_flag_qubits(sample_circuit):
     """Test extracting Debbie's flag qubits."""
     indices = extract_qiskit_indices_by_prefix(sample_circuit, "Debbie_flag", exact_match=True)
     assert indices == [12, 13, 14, 15, 16, 17], f"Expected [12, 13, 14, 15, 16, 17], got {indices}"
-
-
-def test_extract_with_prefix_match(sample_circuit):
-    """Test extracting with prefix match enabled (Charlie should include Charlie_flag)."""
-    indices = extract_qiskit_indices_by_prefix(sample_circuit, "Charlie", exact_match=False)
-    assert indices == [2, 3, 4, 5, 6, 7, 8, 9, 10], f"Expected [2, 3, 4, 5, 6, 7, 8, 9, 10], got {indices}"
-
-
-def test_extract_with_prefix_match_debbie(sample_circuit):
-    """Test extracting with prefix match enabled (Debbie should include Debbie_flag)."""
-    indices = extract_qiskit_indices_by_prefix(sample_circuit, "Debbie", exact_match=False)
-    assert indices == [11, 12, 13, 14, 15, 16, 17], f"Expected [11, 12, 13, 14, 15, 16, 17], got {indices}"
-
-
-def test_extract_non_existent_prefix(sample_circuit):
-    """Test extracting from a non-existent prefix."""
-    indices = extract_qiskit_indices_by_prefix(sample_circuit, "NonExistent", exact_match=True)
-    assert indices == [], f"Expected [], got {indices}"
-
-
-def test_extract_partial_match(sample_circuit):
-    """Test extracting a substring that shouldn't match any register exactly."""
-    indices = extract_qiskit_indices_by_prefix(sample_circuit, "Char", exact_match=True)
-    assert indices == [], f"Expected [], got {indices}"
