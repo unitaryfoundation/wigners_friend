@@ -165,18 +165,15 @@ class EWFS:
 
     def _get_classical_registers(self) -> tuple:
         """Define the classical registers for the observers."""
-        if self.friend_state is CNOT_LADDER:
-            if self.strategy is MAJORITY_VOTE:
-                if self.alice_setting is PEEK and self.bob_setting is not PEEK:
-                    alice_creg = list(range(self.charlie_size))
-                    bob_creg = [self.charlie_size]
-                else:
-                    alice_creg, bob_creg = [0], [1]
-            elif self.strategy is RANDOM:
-                alice_creg, bob_creg = [0], [0]
-        elif self.friend_state is GHZ:
-            # TODO: Fix
-            alice_creg, bob_creg = [0], [1]
+        alice_creg, bob_creg = [], []
+        if self.strategy is MAJORITY_VOTE:
+            if self.alice_setting is PEEK and self.bob_setting is not PEEK:
+                alice_creg = list(range(self.charlie_size))
+                bob_creg = [self.charlie_size]
+            else:
+                alice_creg, bob_creg = [0], [1]
+        elif self.strategy is RANDOM:
+            alice_creg, bob_creg = [0], [0]
 
         return alice_creg, bob_creg
 
@@ -187,25 +184,33 @@ class EWFS:
         qc.h(ALICE)
         qc.cx(ALICE, BOB)
 
+    def _apply_cnot_ladder_state(self, qc: QuantumCircuit) -> None:
+        """CNOT ladder state for Charlie and Debbie."""
+        self.charlie_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie")
+        self.debbie_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie")
+
+        if self.strategy == MAJORITY_VOTE:
+            cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size, reverse=False, internal_copy=True)
+            cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size, reverse=False, internal_copy=True)
+        elif self.strategy == RANDOM:
+            cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size)
+            cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size)
+
+    def _apply_ghz_state(self, qc: QuantumCircuit) -> None:
+        """GHZ friend state for Charlie and Debbie."""
+        qc = ghz_ewfs_circuit(qc, self.charlie_size, self.debbie_size)
+        self.charlie_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie")
+        self.debbie_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie")
+        self.charlie_flag_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie_flag")
+        self.debbie_flag_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie_flag")
+
     def _apply_friend_state(self, qc: QuantumCircuit) -> QuantumCircuit:
         """Apply the state for the friends Charlie and Debbie."""
-        if self.friend_state is CNOT_LADDER:
-            self.charlie_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie")
-            self.debbie_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie")
-            if self.strategy is MAJORITY_VOTE:
-                cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size, reverse=False, internal_copy=True)
-                cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size, reverse=False, internal_copy=True)
-            elif self.strategy is RANDOM:
-                cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size)
-                cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size)
-            return qc
-        elif self.friend_state is GHZ:
-            qc = ghz_ewfs_circuit(qc, self.charlie_size, self.debbie_size)
-            self.charlie_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie")
-            self.debbie_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie")
-            self.charlie_flag_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie_flag")
-            self.debbie_flag_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie_flag")
-            return qc
+        if self.friend_state == CNOT_LADDER:
+            self._apply_cnot_ladder_state(qc)
+        elif self.friend_state == GHZ:
+            self._apply_ghz_state(qc)
+        return qc
 
     def _apply_setting(
         self,
