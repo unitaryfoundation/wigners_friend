@@ -124,8 +124,8 @@ class EWFS:
             creg_debbie_flag_qubits = ClassicalRegister(len(self.debbie_flag_qubits), 'debbie_flag_qubits')
             creg_charlie_flag_qubits = ClassicalRegister(len(self.charlie_flag_qubits), 'charlie_flag_qubits')
 
-            qc.add_register(creg_debbie_flag_qubits)
             qc.add_register(creg_charlie_flag_qubits)
+            qc.add_register(creg_debbie_flag_qubits)
 
             # Now we measure the flag qubits.
             qc.measure(self.charlie_flag_qubits, creg_charlie_flag_qubits)
