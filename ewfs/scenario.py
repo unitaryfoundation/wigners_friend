@@ -176,7 +176,7 @@ class EWFS:
             elif self.strategy is RANDOM:
                 alice_creg, bob_creg = [0], [1]
         elif self.friend_state is GHZ:
-             alice_creg, bob_creg = [0], [1]
+            alice_creg, bob_creg = [0], [1]
 
         return alice_creg, bob_creg
 
