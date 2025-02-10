@@ -15,7 +15,7 @@ qiskit-aer = "^0.16.0"
 jupyter = "^1.1.1"
 networkx = "^3.3"
 ipykernel = "^6.29.5"
-qiskit-ibm-runtime = "^0.34.0"
+qiskit-ibm-runtime = "^0.35.0"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.14.1"
