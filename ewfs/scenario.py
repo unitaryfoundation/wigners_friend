@@ -127,9 +127,9 @@ class EWFS:
             qc.add_register(creg_debbie_flag_qubits)
             qc.add_register(creg_charlie_flag_qubits)
 
-        # Now we measure the flag qubits.
-        qc.measure(self.charlie_flag_qubits, creg_charlie_flag_qubits)
-        qc.measure(self.debbie_flag_qubits, creg_debbie_flag_qubits)
+            # Now we measure the flag qubits.
+            qc.measure(self.charlie_flag_qubits, creg_charlie_flag_qubits)
+            qc.measure(self.debbie_flag_qubits, creg_debbie_flag_qubits)
 
         return qc
 
@@ -174,7 +174,7 @@ class EWFS:
                 else:
                     alice_creg, bob_creg = [0], [1]
             elif self.strategy is RANDOM:
-                alice_creg, bob_creg = [0], [0]
+                alice_creg, bob_creg = [0], [1]
         elif self.friend_state is GHZ:
             # TODO: Fix
             alice_creg, bob_creg = [0], [1]
