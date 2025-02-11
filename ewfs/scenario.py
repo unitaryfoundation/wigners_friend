@@ -177,7 +177,7 @@ class EWFS:
                     bob_creg = list(range(self.charlie_size, self.charlie_size + self.debbie_size))
                 elif self.alice_setting is PEEK and self.bob_setting is not PEEK:
                     alice_creg = list(range(self.charlie_size))
-                    bob_creg = [1+self.charlie_size]
+                    bob_creg = [self.charlie_size]
                 elif self.alice_setting is not PEEK and self.bob_setting is PEEK:
                     alice_creg = [0]
                     bob_creg = list(range(1, 1+self.debbie_size))
@@ -236,8 +236,6 @@ class EWFS:
     def _apply_peek(self, qc: QuantumCircuit, observer: int, observer_creg: list[int], friend: Friend) -> None:
         if self.strategy is MAJORITY_VOTE:
             # Ask friend for the outcome.
-            print(friend.qubits)
-            print(observer_creg)
             qc.measure(friend.qubits, observer_creg)
         elif self.strategy is RANDOM:
             random_offset = random.randint(0, friend.size - 1)
