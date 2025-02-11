@@ -135,20 +135,20 @@ class EWFS:
 
     def _initialize_circuit(self) -> QuantumCircuit:
         """Initialize the classical measurement registers based on the strategy."""
-        if self.friend_state is CNOT_LADDER:
-            if self.strategy is MAJORITY_VOTE:
-                if self.alice_setting is PEEK and self.bob_setting is PEEK:
-                    measurement = ClassicalRegister(self.charlie_size + self.debbie_size, name="measurement")
-                elif self.alice_setting is PEEK and self.bob_setting is not PEEK:
-                    measurement = ClassicalRegister(self.charlie_size + 1, name="measurement")
-                elif self.alice_setting is not PEEK and self.bob_setting is PEEK:
-                    measurement = ClassicalRegister(self.debbie_size + 1, name="measurement")
-                else:
-                    measurement = ClassicalRegister(self.sys_size, name="measurement")
-
-            elif self.strategy is RANDOM:
+        if self.strategy is MAJORITY_VOTE:
+            if self.alice_setting is PEEK and self.bob_setting is PEEK:
+                measurement = ClassicalRegister(self.charlie_size + self.debbie_size, name="measurement")
+            elif self.alice_setting is PEEK and self.bob_setting is not PEEK:
+                measurement = ClassicalRegister(self.charlie_size + 1, name="measurement")
+            elif self.alice_setting is not PEEK and self.bob_setting is PEEK:
+                measurement = ClassicalRegister(self.debbie_size + 1, name="measurement")
+            else:
                 measurement = ClassicalRegister(self.sys_size, name="measurement")
 
+        elif self.strategy is RANDOM:
+            measurement = ClassicalRegister(self.sys_size, name="measurement")
+
+        if self.friend_state is CNOT_LADDER:
             alice, bob, charlie, debbie = [
                 QuantumRegister(size, name=name)
                 for size, name in zip(
@@ -161,7 +161,6 @@ class EWFS:
 
         elif self.friend_state is GHZ:
             # For the GHZ case, we just initialize the circuit for Alice and Bob now and deal with the friends later.
-            measurement = ClassicalRegister(self.meas_size, name="measurement")
             alice, bob = [
                 QuantumRegister(size, name=name)
                 for size, name in zip([self.alice_size, self.bob_size], ["Alice", "Bob"])
@@ -170,23 +169,19 @@ class EWFS:
 
     def _get_classical_registers(self) -> tuple:
         """Define the classical registers for the observers."""
-        if self.friend_state is CNOT_LADDER:
-            if self.strategy is MAJORITY_VOTE:
-                if self.alice_setting is PEEK and self.bob_setting is PEEK:
-                    alice_creg = list(range(self.charlie_size))
-                    bob_creg = list(range(self.charlie_size, self.charlie_size + self.debbie_size))
-                elif self.alice_setting is PEEK and self.bob_setting is not PEEK:
-                    alice_creg = list(range(self.charlie_size))
-                    bob_creg = [self.charlie_size]
-                elif self.alice_setting is not PEEK and self.bob_setting is PEEK:
-                    alice_creg = [0]
-                    bob_creg = list(range(1, 1+self.debbie_size))
-                else:
-                    alice_creg, bob_creg = [0], [1]
-            elif self.strategy is RANDOM:
+        if self.strategy is MAJORITY_VOTE:
+            if self.alice_setting is PEEK and self.bob_setting is PEEK:
+                alice_creg = list(range(self.charlie_size))
+                bob_creg = list(range(self.charlie_size, self.charlie_size + self.debbie_size))
+            elif self.alice_setting is PEEK and self.bob_setting is not PEEK:
+                alice_creg = list(range(self.charlie_size))
+                bob_creg = [self.charlie_size]
+            elif self.alice_setting is not PEEK and self.bob_setting is PEEK:
+                alice_creg = [0]
+                bob_creg = list(range(1, 1+self.debbie_size))
+            else:
                 alice_creg, bob_creg = [0], [1]
-        elif self.friend_state is GHZ:
-            # TODO: Fix
+        elif self.strategy is RANDOM:
             alice_creg, bob_creg = [0], [1]
 
         return alice_creg, bob_creg
