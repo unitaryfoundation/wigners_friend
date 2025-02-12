@@ -121,8 +121,8 @@ class EWFS:
         # Adding classical flag registers and measurements of the flag qubits here if GHZ setting is used.
 
         if self.friend_state == GHZ:
-            creg_debbie_flag_qubits = ClassicalRegister(len(self.debbie_flag_qubits), 'debbie_flag_qubits')
-            creg_charlie_flag_qubits = ClassicalRegister(len(self.charlie_flag_qubits), 'charlie_flag_qubits')
+            creg_charlie_flag_qubits = ClassicalRegister(len(self.charlie_flag_qubits), "charlie_flag_qubits")
+            creg_debbie_flag_qubits = ClassicalRegister(len(self.debbie_flag_qubits), "debbie_flag_qubits")
 
             qc.add_register(creg_debbie_flag_qubits)
             qc.add_register(creg_charlie_flag_qubits)
