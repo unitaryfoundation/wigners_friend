@@ -119,9 +119,10 @@ class EWFS:
         )
 
         # Adding classical flag registers and measurements of the flag qubits here if GHZ setting is used.
+
         if self.friend_state == GHZ:
-            creg_debbie_flag_qubits = ClassicalRegister(len(self.debbie_flag_qubits), "debbie_flag_qubits")
             creg_charlie_flag_qubits = ClassicalRegister(len(self.charlie_flag_qubits), "charlie_flag_qubits")
+            creg_debbie_flag_qubits = ClassicalRegister(len(self.debbie_flag_qubits), "debbie_flag_qubits")
 
             qc.add_register(creg_debbie_flag_qubits)
             qc.add_register(creg_charlie_flag_qubits)
@@ -134,16 +135,19 @@ class EWFS:
 
     def _initialize_circuit(self) -> QuantumCircuit:
         """Initialize the classical measurement registers based on the strategy."""
+        if self.strategy is MAJORITY_VOTE:
+            size = (
+                self.charlie_size + self.debbie_size if self.alice_setting is PEEK and self.bob_setting is PEEK
+                else self.charlie_size + 1 if self.alice_setting is PEEK
+                else self.debbie_size + 1 if self.bob_setting is PEEK
+                else self.sys_size
+            )
+        elif self.strategy is RANDOM:
+            size = self.sys_size
+
+        measurement = ClassicalRegister(size, name="measurement")
+
         if self.friend_state is CNOT_LADDER:
-            if self.strategy is MAJORITY_VOTE:
-                if self.alice_setting is PEEK and self.bob_setting is not PEEK:
-                    measurement = ClassicalRegister(self.charlie_size + 1, name="measurement")
-                else:
-                    measurement = ClassicalRegister(self.meas_size, name="measurement")
-
-            elif self.strategy is RANDOM:
-                measurement = ClassicalRegister(self.sys_size, name="measurement")
-
             alice, bob, charlie, debbie = [
                 QuantumRegister(size, name=name)
                 for size, name in zip(
@@ -156,7 +160,6 @@ class EWFS:
 
         elif self.friend_state is GHZ:
             # For the GHZ case, we just initialize the circuit for Alice and Bob now and deal with the friends later.
-            measurement = ClassicalRegister(self.meas_size, name="measurement")
             alice, bob = [
                 QuantumRegister(size, name=name)
                 for size, name in zip([self.alice_size, self.bob_size], ["Alice", "Bob"])
@@ -165,15 +168,20 @@ class EWFS:
 
     def _get_classical_registers(self) -> tuple:
         """Define the classical registers for the observers."""
-        alice_creg, bob_creg = [], []
         if self.strategy is MAJORITY_VOTE:
-            if self.alice_setting is PEEK and self.bob_setting is not PEEK:
+            if self.alice_setting is PEEK and self.bob_setting is PEEK:
+                alice_creg = list(range(self.charlie_size))
+                bob_creg = list(range(self.charlie_size, self.charlie_size + self.debbie_size))
+            elif self.alice_setting is PEEK and self.bob_setting is not PEEK:
                 alice_creg = list(range(self.charlie_size))
                 bob_creg = [self.charlie_size]
+            elif self.alice_setting is not PEEK and self.bob_setting is PEEK:
+                alice_creg = [0]
+                bob_creg = list(range(1, 1+self.debbie_size))
             else:
                 alice_creg, bob_creg = [0], [1]
         elif self.strategy is RANDOM:
-            alice_creg, bob_creg = [0], [0]
+            alice_creg, bob_creg = [0], [1]
 
         return alice_creg, bob_creg
 
@@ -184,33 +192,25 @@ class EWFS:
         qc.h(ALICE)
         qc.cx(ALICE, BOB)
 
-    def _apply_cnot_ladder_state(self, qc: QuantumCircuit) -> None:
-        """CNOT ladder state for Charlie and Debbie."""
-        self.charlie_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie")
-        self.debbie_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie")
-
-        if self.strategy == MAJORITY_VOTE:
-            cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size, reverse=False, internal_copy=True)
-            cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size, reverse=False, internal_copy=True)
-        elif self.strategy == RANDOM:
-            cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size)
-            cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size)
-
-    def _apply_ghz_state(self, qc: QuantumCircuit) -> None:
-        """GHZ friend state for Charlie and Debbie."""
-        qc = ghz_ewfs_circuit(qc, self.charlie_size, self.debbie_size)
-        self.charlie_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie")
-        self.debbie_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie")
-        self.charlie_flag_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie_flag")
-        self.debbie_flag_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie_flag")
-
     def _apply_friend_state(self, qc: QuantumCircuit) -> QuantumCircuit:
         """Apply the state for the friends Charlie and Debbie."""
-        if self.friend_state == CNOT_LADDER:
-            self._apply_cnot_ladder_state(qc)
-        elif self.friend_state == GHZ:
-            self._apply_ghz_state(qc)
-        return qc
+        if self.friend_state is CNOT_LADDER:
+            self.charlie_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie")
+            self.debbie_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie")
+            if self.strategy is MAJORITY_VOTE:
+                cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size, reverse=False, internal_copy=True)
+                cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size, reverse=False, internal_copy=True)
+            elif self.strategy is RANDOM:
+                cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size)
+                cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size)
+            return qc
+        elif self.friend_state is GHZ:
+            qc = ghz_ewfs_circuit(qc, self.charlie_size, self.debbie_size)
+            self.charlie_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie")
+            self.debbie_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie")
+            self.charlie_flag_qubits = extract_qiskit_indices_by_prefix(qc, "Charlie_flag")
+            self.debbie_flag_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie_flag")
+            return qc
 
     def _apply_setting(
         self,

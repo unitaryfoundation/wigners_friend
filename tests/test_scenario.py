@@ -6,6 +6,8 @@ from ewfs.friend_state import FRIEND_STATES
 from ewfs.setting import SETTINGS
 from ewfs.strategy import STRATEGIES
 
+from qiskit import QuantumCircuit
+
 
 @pytest.mark.parametrize("alice_setting", SETTINGS)
 @pytest.mark.parametrize("bob_setting", SETTINGS)
@@ -23,6 +25,8 @@ def test_ewfs_initialization(alice_setting, bob_setting, friend_state, strategy,
         charlie_size=charlie_size,
         debbie_size=debbie_size,
     )
+
+    assert isinstance(ewfs.circuit(), QuantumCircuit)
 
     assert ewfs.alice_setting == alice_setting
     assert ewfs.bob_setting == bob_setting

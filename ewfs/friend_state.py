@@ -11,4 +11,4 @@ class FriendState(StrEnum):
 
 
 CNOT_LADDER, GHZ = FriendState.CNOT_LADDER.value, FriendState.GHZ.value
-FRIEND_STATES = [CNOT_LADDER]
+FRIEND_STATES = [CNOT_LADDER, GHZ]
