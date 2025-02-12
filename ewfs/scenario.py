@@ -135,17 +135,17 @@ class EWFS:
 
     def _initialize_circuit(self) -> QuantumCircuit:
         """Initialize the classical measurement registers based on the strategy."""
-if self.strategy is MAJORITY_VOTE:
-    size = (
-        self.charlie_size + self.debbie_size if self.alice_setting is PEEK and self.bob_setting is PEEK
-        else self.charlie_size + 1 if self.alice_setting is PEEK
-        else self.debbie_size + 1 if self.bob_setting is PEEK
-        else self.sys_size
-    )
-elif self.strategy is RANDOM:
-    size = self.sys_size
+        if self.strategy is MAJORITY_VOTE:
+            size = (
+                self.charlie_size + self.debbie_size if self.alice_setting is PEEK and self.bob_setting is PEEK
+                else self.charlie_size + 1 if self.alice_setting is PEEK
+                else self.debbie_size + 1 if self.bob_setting is PEEK
+                else self.sys_size
+            )
+        elif self.strategy is RANDOM:
+            size = self.sys_size
 
-measurement = ClassicalRegister(size, name="measurement")
+        measurement = ClassicalRegister(size, name="measurement")
 
         if self.friend_state is CNOT_LADDER:
             alice, bob, charlie, debbie = [
