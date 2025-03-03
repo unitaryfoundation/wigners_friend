@@ -20,7 +20,7 @@ qiskit-ibm-runtime = "^0.36.1"
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.15.0"
 pre-commit = "^4.1.0"
-ruff = "^0.9.7"
+ruff = "^0.9.9"
 pytest = "^8.3.4"
 
 [tool.mypy]
