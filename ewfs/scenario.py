@@ -137,9 +137,12 @@ class EWFS:
         """Initialize the classical measurement registers based on the strategy."""
         if self.strategy is MAJORITY_VOTE:
             size = (
-                self.charlie_size + self.debbie_size if self.alice_setting is PEEK and self.bob_setting is PEEK
-                else self.charlie_size + 1 if self.alice_setting is PEEK
-                else self.debbie_size + 1 if self.bob_setting is PEEK
+                self.charlie_size + self.debbie_size
+                if self.alice_setting is PEEK and self.bob_setting is PEEK
+                else self.charlie_size + 1
+                if self.alice_setting is PEEK
+                else self.debbie_size + 1
+                if self.bob_setting is PEEK
                 else self.sys_size
             )
         elif self.strategy is RANDOM:
@@ -177,7 +180,7 @@ class EWFS:
                 bob_creg = [self.charlie_size]
             elif self.alice_setting is not PEEK and self.bob_setting is PEEK:
                 alice_creg = [0]
-                bob_creg = list(range(1, 1+self.debbie_size))
+                bob_creg = list(range(1, 1 + self.debbie_size))
             else:
                 alice_creg, bob_creg = [0], [1]
         elif self.strategy is RANDOM:
@@ -252,8 +255,11 @@ class EWFS:
             elif self.strategy is RANDOM:
                 cnot_ladder(qc, observer, friend.qubits[0], friend.size)
         elif self.friend_state is GHZ:
+            # Inverse the GHZ "check" qubits.
             friend_ghz_qc = ibm_fez_ghz_circuit(friend.size, friend_label=friend.label).inverse()
             qc.compose(friend_ghz_qc, qubits=friend.qubits + friend.flag_qubits, inplace=True)
+            # We need to undo (reverse) the CNOT between the observer and the friend.
+            qc.cx(observer, friend.qubits[0])
 
         # Apply the rotation based on the observer.
         if observer is ALICE:
