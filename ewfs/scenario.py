@@ -255,11 +255,11 @@ class EWFS:
             elif self.strategy is RANDOM:
                 cnot_ladder(qc, observer, friend.qubits[0], friend.size)
         elif self.friend_state is GHZ:
-            # We need to undo (reverse) the CNOT between the observer and the friend.
-            qc.cx(observer, friend.qubits[0])
             # Inverse the GHZ "check" qubits.
             friend_ghz_qc = ibm_fez_ghz_circuit(friend.size, friend_label=friend.label).inverse()
             qc.compose(friend_ghz_qc, qubits=friend.qubits + friend.flag_qubits, inplace=True)
+            # We need to undo (reverse) the CNOT between the observer and the friend.
+            qc.cx(observer, friend.qubits[0])
 
         # Apply the rotation based on the observer.
         if observer is ALICE:
