@@ -33,10 +33,11 @@ def decode_results(results: dict, charlie_size: int, debbie_size: int = 1) -> di
 
     return decoded_results
 
+
 def post_select_results(results: dict, charlie_size: int, debbie_size: int = 1) -> dict:
-    """ Check the measurement outcomes of flag qubits and post-select results."""
+    """Check the measurement outcomes of flag qubits and post-select results."""
     # placeholder for post-selection logic
-    pass
+    return {}
 
 
 def calculate_branch_factor(friend_size: int) -> float:

@@ -22,18 +22,27 @@ def save_data(
     `<MACHINE_NAME>_charlie_size_<CHARLIE_SIZE>_debbie_size_<DEBBIE_SIZE>_trial_<TRIAL>_shots_<NUM_SHOTS>`.
     """
     if save_path is None:
-        # If not output file name is given, use this format.
+        # Define the path for the 'data' directory
         data_path = os.path.join(os.getcwd(), "data")
+
+        # ✅ Create the parent directory if it does not already exist
+        if not os.path.exists(data_path):
+            os.makedirs(data_path)
+
+        # Get the backend name for the output file
         try:
             backend_name = backend.name
         except AttributeError:
             backend_name = str(backend)
+
+        # Construct the final file name
         output_file_name = (
-            f"{backend_name}_charlie_size_{charlie_size}_debbie_size_{debbie_size}_trial_{trial}_shots_{shots}.pickle"
+            f"{backend_name}_charlie_size_{charlie_size}_debbie_size_{debbie_size}_"
+            f"trial_{trial}_shots_{shots}.pickle"
         )
+
+        # Now, join the directory path and file name to get the full save path
         save_path = os.path.join(data_path, output_file_name)
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
 
     print(f"Writing data to: {save_path}")
     with open(save_path, "wb") as handle:
