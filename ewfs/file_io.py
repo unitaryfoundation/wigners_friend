@@ -25,9 +25,8 @@ def save_data(
         # Define the path for the 'data' directory
         data_path = os.path.join(os.getcwd(), "data")
 
-        # ✅ Create the parent directory if it does not already exist
-        if not os.path.exists(data_path):
-            os.makedirs(data_path)
+        # ✅ Create the parent directory, handling potential race conditions
+        os.makedirs(data_path, exist_ok=True)
 
         # Get the backend name for the output file
         try:
