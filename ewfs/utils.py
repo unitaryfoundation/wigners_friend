@@ -33,10 +33,31 @@ def decode_results(results: dict, charlie_size: int, debbie_size: int = 1) -> di
 
     return decoded_results
 
-def post_select_results(results: dict, charlie_size: int, debbie_size: int = 1) -> dict:
-    """ Check the measurement outcomes of flag qubits and post-select results."""
-    # placeholder for post-selection logic
-    pass
+def post_select_results(results: dict, charlie_size: int, debbie_size: int = 1, flag_size_charlie: int = 0, flag_size_debbie: int = 0) -> dict:
+    """ 
+    Check the measurement outcomes of flag qubits and post-select results.
+    """
+    post_selected_results = {}
+
+    for bitstring, count in results.items():
+        # Remove spaces
+        processed_bitstring = bitstring.replace(" ", "")
+
+        friends_bitstring = processed_bitstring[:charlie_size + debbie_size]
+        flags_bitstring = processed_bitstring[charlie_size + debbie_size:]
+
+        # Extract the flag bits
+        charlie_flags = flags_bitstring[:flag_size_debbie]
+        debbie_flags = flags_bitstring[flag_size_debbie:]
+
+        # Check if all flags are '0' or '1' depending on the flag sizes
+        if flag_size_charlie % 2 == 0:
+            if all(flag == '0' for flag in charlie_flags) and all(flag == '0' for flag in debbie_flags):
+                post_selected_results[friends_bitstring] = count
+        elif flag_size_charlie % 2 == 1:
+            if all(flag == '1' for flag in charlie_flags) and all(flag == '0' for flag in debbie_flags):
+                post_selected_results[friends_bitstring] = count
+    return post_selected_results
 
 
 def calculate_branch_factor(friend_size: int) -> float:
