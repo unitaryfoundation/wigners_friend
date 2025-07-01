@@ -39,24 +39,42 @@ def post_select_results(results: dict, charlie_size: int, debbie_size: int = 1, 
     """
     post_selected_results = {}
 
-    for bitstring, count in results.items():
-        # Remove spaces
-        processed_bitstring = bitstring.replace(" ", "")
+    for setting in results:
+        post_selected_results_setting = {}
+        if setting == (PEEK, REVERSE_1) or setting == (PEEK, REVERSE_2):
 
-        friends_bitstring = processed_bitstring[:charlie_size + debbie_size]
-        flags_bitstring = processed_bitstring[charlie_size + debbie_size:]
+            for bitstring, count in results[setting].items():
+                # Remove spaces
+                processed_bitstring = bitstring.replace(" ", "")
 
-        # Extract the flag bits
-        charlie_flags = flags_bitstring[:flag_size_debbie]
-        debbie_flags = flags_bitstring[flag_size_debbie:]
+                friends_bitstring = processed_bitstring[:charlie_size + debbie_size]
+                flags_bitstring = processed_bitstring[charlie_size + debbie_size:]
 
-        # Check if all flags are '0' or '1' depending on the flag sizes
-        if flag_size_charlie % 2 == 0:
-            if all(flag == '0' for flag in charlie_flags) and all(flag == '0' for flag in debbie_flags):
-                post_selected_results[friends_bitstring] = count
-        elif flag_size_charlie % 2 == 1:
-            if all(flag == '1' for flag in charlie_flags) and all(flag == '0' for flag in debbie_flags):
-                post_selected_results[friends_bitstring] = count
+                # Extract the flag bits
+                debbie_flags = flags_bitstring[:flag_size_debbie]
+                charlie_flags = flags_bitstring[flag_size_debbie:]
+
+                if all(flag == '0' for flag in charlie_flags) or all(flag == '1' for flag in charlie_flags): 
+                    if all(flag == '0' for flag in debbie_flags):
+                        post_selected_results_setting[friends_bitstring] = count
+        else:
+            for bitstring, count in results[setting].items():
+                # Remove spaces
+                processed_bitstring = bitstring.replace(" ", "")
+
+                friends_bitstring = processed_bitstring[:2]
+                flags_bitstring = processed_bitstring[2:]
+
+                # Extract the flag bits
+                debbie_flags = flags_bitstring[:flag_size_debbie]
+                charlie_flags = flags_bitstring[flag_size_debbie:]
+
+                if all(flag == '0' for flag in charlie_flags) or all(flag == '1' for flag in charlie_flags): 
+                    if all(flag == '0' for flag in debbie_flags):
+                        post_selected_results_setting[friends_bitstring] = count
+        post_selected_results[setting] = post_selected_results_setting
+        
+            
     return post_selected_results
 
 
