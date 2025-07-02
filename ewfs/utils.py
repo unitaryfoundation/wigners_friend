@@ -54,8 +54,8 @@ def post_select_results(results: dict, charlie_size: int, debbie_size: int = 1, 
                 debbie_flags = flags_bitstring[:flag_size_debbie]
                 charlie_flags = flags_bitstring[flag_size_debbie:]
 
-                if all(flag == '0' for flag in charlie_flags) or all(flag == '1' for flag in charlie_flags): 
-                    if all(flag == '0' for flag in debbie_flags):
+                if len(set(charlie_flags)) <= 1 and all(flag == "0" for flag in debbie_flags):
+                    post_selected_results_setting[friends_bitstring] = count
                         post_selected_results_setting[friends_bitstring] = count
         else:
             for bitstring, count in results[setting].items():
