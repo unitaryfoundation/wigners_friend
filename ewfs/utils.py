@@ -41,7 +41,7 @@ def post_select_results(results: dict, charlie_size: int, debbie_size: int = 1, 
 
     for setting in results:
         post_selected_results_setting = {}
-        if setting == (PEEK, REVERSE_1) or setting == (PEEK, REVERSE_2):
+        if setting in [(PEEK, REVERSE_1), (PEEK, REVERSE_2)]:
 
             for bitstring, count in results[setting].items():
                 # Remove spaces
