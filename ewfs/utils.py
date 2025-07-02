@@ -56,7 +56,6 @@ def post_select_results(results: dict, charlie_size: int, debbie_size: int = 1, 
 
                 if len(set(charlie_flags)) <= 1 and all(flag == "0" for flag in debbie_flags):
                     post_selected_results_setting[friends_bitstring] = count
-                        post_selected_results_setting[friends_bitstring] = count
         else:
             for bitstring, count in results[setting].items():
                 # Remove spaces
