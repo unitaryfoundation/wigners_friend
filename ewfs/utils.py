@@ -70,7 +70,7 @@ def post_select_results(results: dict, charlie_size: int, debbie_size: int = 1, 
                 charlie_flags = flags_bitstring[flag_size_debbie:]
 
                 if len(set(charlie_flags)) <= 1 and all(flag == '0' for flag in debbie_flags):
-                        post_selected_results_setting[friends_bitstring] = count
+                    post_selected_results_setting[friends_bitstring] = count
         post_selected_results[setting] = post_selected_results_setting
         
             
