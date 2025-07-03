@@ -103,9 +103,13 @@ def ghz_ewfs_circuit(qc: QuantumCircuit, charlie_size: int, debbie_size: int) ->
     """
     # Compose Charlie's GHZ circuit
     charlie_ghz_qc = ibm_fez_ghz_circuit(charlie_size, friend_label="Charlie")
-    debbie_ghz_qc = ibm_fez_ghz_circuit(debbie_size, friend_label="Debbie")
+    debbie_ghz_qc = ibm_fez_ghz_circuit(debbie_size, friend_label="Debbie") if debbie_size > 0 else None
 
-    circuits = [qc, charlie_ghz_qc, debbie_ghz_qc]
+    circuits = [qc, charlie_ghz_qc]
+    # If Debbie's GHZ circuit is not None, add it to the circuits list
+    if debbie_ghz_qc:
+        circuits.append(debbie_ghz_qc)
+
     combined_circuit = QuantumCircuit(
         *[qreg for circuit in circuits for qreg in circuit.qregs],
         *[creg for circuit in circuits for creg in circuit.cregs],
@@ -119,10 +123,8 @@ def ghz_ewfs_circuit(qc: QuantumCircuit, charlie_size: int, debbie_size: int) ->
     alice_qubit = combined_circuit.qubits[0]  # Assuming Alice is the first qubit in qc
     bob_qubit = combined_circuit.qubits[1]  # Assuming Bob is the second qubit in qc
     charlie_0_qubit = combined_circuit.qubits[len(qc.qubits)]  # First qubit of Charlie (before GHZ circuit)
-    debbie_0_qubit = combined_circuit.qubits[len(qc.qubits) + len(charlie_ghz_qc.qubits)]  # First qubit of Debbie
-
     combined_circuit.cx(alice_qubit, charlie_0_qubit)  # CNOT from Alice to Charlie_0
-    combined_circuit.cx(bob_qubit, debbie_0_qubit)  # CNOT from Bob to Debbie_0
+    
     combined_circuit.barrier()
 
     # Offset for Charlie registers
@@ -134,13 +136,16 @@ def ghz_ewfs_circuit(qc: QuantumCircuit, charlie_size: int, debbie_size: int) ->
     )
     combined_circuit.barrier()
 
-    # Offset for Debbie registers
-    debbie_qubit_offset = charlie_qubit_offset + len(charlie_ghz_qc.qubits)
-    combined_circuit.compose(
-        debbie_ghz_qc,
-        qubits=range(debbie_qubit_offset, debbie_qubit_offset + debbie_ghz_qc.num_qubits),
-        inplace=True,
-    )
+    if debbie_ghz_qc:
+        debbie_0_qubit = combined_circuit.qubits[len(qc.qubits) + len(charlie_ghz_qc.qubits)]  # First qubit of Debbie
+        combined_circuit.cx(bob_qubit, debbie_0_qubit)  # CNOT from Bob to Debbie_0
+        # Offset for Debbie registers
+        debbie_qubit_offset = charlie_qubit_offset + len(charlie_ghz_qc.qubits)
+        combined_circuit.compose(
+            debbie_ghz_qc,
+            qubits=range(debbie_qubit_offset, debbie_qubit_offset + debbie_ghz_qc.num_qubits),
+            inplace=True,
+        )
 
     return combined_circuit
 
