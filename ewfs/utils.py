@@ -34,10 +34,47 @@ def decode_results(results: dict, charlie_size: int, debbie_size: int = 1) -> di
     return decoded_results
 
 
-def post_select_results(results: dict, charlie_size: int, debbie_size: int = 1) -> dict:
-    """Check the measurement outcomes of flag qubits and post-select results."""
-    # placeholder for post-selection logic
-    return {}
+def post_select_results(results: dict, charlie_size: int, debbie_size: int = 1, flag_size_charlie: int = 0, flag_size_debbie: int = 0) -> dict:
+    """ 
+    Check the measurement outcomes of flag qubits and post-select results.
+    """
+    post_selected_results = {}
+
+    for setting in results:
+        post_selected_results_setting = {}
+        if setting in [(PEEK, REVERSE_1), (PEEK, REVERSE_2)]:
+
+            for bitstring, count in results[setting].items():
+                # Remove spaces
+                processed_bitstring = bitstring.replace(" ", "")
+
+                friends_bitstring = processed_bitstring[:charlie_size + debbie_size]
+                flags_bitstring = processed_bitstring[charlie_size + debbie_size:]
+
+                # Extract the flag bits
+                debbie_flags = flags_bitstring[:flag_size_debbie]
+                charlie_flags = flags_bitstring[flag_size_debbie:]
+
+                if len(set(charlie_flags)) <= 1 and all(flag == "0" for flag in debbie_flags):
+                    post_selected_results_setting[friends_bitstring] = count
+        else:
+            for bitstring, count in results[setting].items():
+                # Remove spaces
+                processed_bitstring = bitstring.replace(" ", "")
+
+                friends_bitstring = processed_bitstring[:2]
+                flags_bitstring = processed_bitstring[2:]
+
+                # Extract the flag bits
+                debbie_flags = flags_bitstring[:flag_size_debbie]
+                charlie_flags = flags_bitstring[flag_size_debbie:]
+
+                if len(set(charlie_flags)) <= 1 and all(flag == '0' for flag in debbie_flags):
+                    post_selected_results_setting[friends_bitstring] = count
+        post_selected_results[setting] = post_selected_results_setting
+        
+            
+    return post_selected_results
 
 
 def calculate_branch_factor(friend_size: int) -> float:
