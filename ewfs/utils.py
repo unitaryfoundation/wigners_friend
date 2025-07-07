@@ -33,6 +33,7 @@ def decode_results(results: dict, charlie_size: int, debbie_size: int = 1) -> di
 
     return decoded_results
 
+
 def post_select_results(results: dict, charlie_size: int, debbie_size: int = 1, flag_size_charlie: int = 0, flag_size_debbie: int = 0) -> dict:
     """ 
     Check the measurement outcomes of flag qubits and post-select results.
