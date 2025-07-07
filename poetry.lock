@@ -898,43 +898,43 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "ibm-cloud-sdk-core"
-version = "3.22.1"
+version = "3.24.2"
 description = "Core library used by SDKs for IBM Cloud Services"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "ibm_cloud_sdk_core-3.22.1-py3-none-any.whl", hash = "sha256:d2195d34705b24c7e3a59ad51f01a974defc5bee3576570d9a0e219139550dd4"},
-    {file = "ibm_cloud_sdk_core-3.22.1.tar.gz", hash = "sha256:096dd22c146848a87053f8f2bfbd5dfdf089eefe81ee1c448ca22c4304751dfd"},
+    {file = "ibm_cloud_sdk_core-3.24.2-py3-none-any.whl", hash = "sha256:432c0edd812a22a1c61af095bf48202e29a1c03a893fc735389399ace059ee64"},
+    {file = "ibm_cloud_sdk_core-3.24.2.tar.gz", hash = "sha256:06265ce80162301c0e3dab336f76669137e40038ec802011e4c92f143bead116"},
 ]
 
 [package.dependencies]
-PyJWT = ">=2.8.0,<3.0.0"
-python_dateutil = ">=2.8.2,<3.0.0"
-requests = ">=2.31.0,<3.0.0"
-urllib3 = ">=2.1.0,<3.0.0"
+PyJWT = ">=2.10.1,<3.0.0"
+python_dateutil = ">=2.9.0,<3.0.0"
+requests = ">=2.32.4,<3.0.0"
+urllib3 = ">=2.4.0,<3.0.0"
 
 [package.extras]
-dev = ["black (>=24.0.0,<25.0.0)", "coverage (>=7.3.2,<8.0.0)", "pylint (>=3.0.0,<4.0.0)", "pytest (>=7.4.2,<8.0.0)", "pytest-cov (>=4.1.0,<5.0.0)", "responses (>=0.23.3,<1.0.0)"]
+dev = ["black (>=25.0.0,<26.0.0)", "coverage (>=7.9.0,<8.0.0)", "pylint (>=3.3.7,<4.0.0)", "pytest (>=7.4.4,<8.0.0)", "pytest-cov (>=4.1.0,<5.0.0)", "responses (>=0.25.7,<1.0.0)"]
 publish = ["build", "twine"]
 
 [[package]]
 name = "ibm-platform-services"
-version = "0.59.1"
+version = "0.66.2"
 description = "Python client library for IBM Cloud Platform Services"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "ibm_platform_services-0.59.1-py3-none-any.whl", hash = "sha256:bc9a324c387d2ed5d544f5cab597f50ab55a4426f7c1b40a51162a46f9f62962"},
-    {file = "ibm_platform_services-0.59.1.tar.gz", hash = "sha256:5d0f5a64ddb0cc2dfbeb89da0df611faa9b2494a091f8bba5e8f44a497e7c0c3"},
+    {file = "ibm_platform_services-0.66.2-py3-none-any.whl", hash = "sha256:43010e7fe0380a3cd01c3cb276921c1a5a8a0b2855d321790fae0e3483fcee8e"},
+    {file = "ibm_platform_services-0.66.2.tar.gz", hash = "sha256:7e1bef0570f84d022c101d98ce6ddabf1968fc09116badc759e5f88f3b6e3ecf"},
 ]
 
 [package.dependencies]
-ibm_cloud_sdk_core = ">=3.22.0,<4.0.0"
+ibm_cloud_sdk_core = ">=3.24.2,<4.0.0"
 
 [package.extras]
-dev = ["black (>=24.0.0,<25.0.0)", "coverage (>=7.3.2,<8.0.0)", "pylint (>=3.0.0,<4.0.0)", "pytest (>=7.4.2,<8.0.0)", "pytest-cov (>=4.1.0,<5.0.0)", "responses (>=0.23.3,<1.0.0)"]
+dev = ["black (>=25.0.0,<26.0.0)", "coverage (>=7.9.0,<8.0.0)", "pylint (>=3.3.7,<4.0.0)", "pytest (>=7.4.4,<8.0.0)", "pytest-cov (>=4.1.0,<5.0.0)", "responses (>=0.25.7,<1.0.0)"]
 publish = ["build", "twine"]
 
 [[package]]
@@ -3082,19 +3082,19 @@ typing-extensions = {version = ">=4.4.0", markers = "python_version < \"3.13\""}
 
 [[package]]
 name = "requests"
-version = "2.32.3"
+version = "2.32.4"
 description = "Python HTTP for Humans."
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "requests-2.32.3-py3-none-any.whl", hash = "sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6"},
-    {file = "requests-2.32.3.tar.gz", hash = "sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760"},
+    {file = "requests-2.32.4-py3-none-any.whl", hash = "sha256:27babd3cda2a6d50b30443204ee89830707d396671944c998b5975b031ac2b2c"},
+    {file = "requests-2.32.4.tar.gz", hash = "sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422"},
 ]
 
 [package.dependencies]
 certifi = ">=2017.4.17"
-charset-normalizer = ">=2,<4"
+charset_normalizer = ">=2,<4"
 idna = ">=2.5,<4"
 urllib3 = ">=1.21.1,<3"
 
@@ -3759,14 +3759,14 @@ dev = ["flake8", "flake8-annotations", "flake8-bandit", "flake8-bugbear", "flake
 
 [[package]]
 name = "urllib3"
-version = "2.3.0"
+version = "2.5.0"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "urllib3-2.3.0-py3-none-any.whl", hash = "sha256:1cee9ad369867bfdbbb48b7dd50374c0967a0bb7710050facf0dd6911440e3df"},
-    {file = "urllib3-2.3.0.tar.gz", hash = "sha256:f8c5449b3cf0861679ce7e0503c7b44b5ec981bec0d1d3795a07f1ba96f0204d"},
+    {file = "urllib3-2.5.0-py3-none-any.whl", hash = "sha256:e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc"},
+    {file = "urllib3-2.5.0.tar.gz", hash = "sha256:3fc47733c7e419d4bc3f6b3dc2b4f890bb743906a30d56ba4a5bfa4bbff92760"},
 ]
 
 [package.extras]
