@@ -202,10 +202,12 @@ class EWFS:
             self.debbie_qubits = extract_qiskit_indices_by_prefix(qc, "Debbie")
             if self.strategy is MAJORITY_VOTE:
                 cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size, reverse=False, internal_copy=True)
-                cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size, reverse=False, internal_copy=True)
+                if self.debbie_size > 0:
+                    cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size, reverse=False, internal_copy=True)
             elif self.strategy is RANDOM:
                 cnot_ladder(qc, ALICE, self.charlie_qubits[0], self.charlie_size)
-                cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size)
+                if self.debbie_size > 0:
+                    cnot_ladder(qc, BOB, self.debbie_qubits[0], self.debbie_size)
             return qc
         elif self.friend_state is GHZ:
             qc = ghz_ewfs_circuit(qc, self.charlie_size, self.debbie_size)
@@ -248,18 +250,19 @@ class EWFS:
     ) -> None:
         qc.barrier(observer, friend.qubits)
 
-        # Apply the appropriate friend state.
-        if self.friend_state is CNOT_LADDER:
-            if self.strategy is MAJORITY_VOTE:
-                cnot_ladder(qc, observer, friend.qubits[0], friend.size, reverse=True, internal_copy=True)
-            elif self.strategy is RANDOM:
-                cnot_ladder(qc, observer, friend.qubits[0], friend.size)
-        elif self.friend_state is GHZ:
-            # Inverse the GHZ "check" qubits.
-            friend_ghz_qc = ibm_fez_ghz_circuit(friend.size, friend_label=friend.label).inverse()
-            qc.compose(friend_ghz_qc, qubits=friend.qubits + friend.flag_qubits, inplace=True)
-            # We need to undo (reverse) the CNOT between the observer and the friend.
-            qc.cx(observer, friend.qubits[0])
+        if friend.size > 0:
+            # Apply the appropriate friend state.
+            if self.friend_state is CNOT_LADDER:
+                if self.strategy is MAJORITY_VOTE:
+                    cnot_ladder(qc, observer, friend.qubits[0], friend.size, reverse=True, internal_copy=True)
+                elif self.strategy is RANDOM:
+                    cnot_ladder(qc, observer, friend.qubits[0], friend.size)
+            elif self.friend_state is GHZ:
+                # Inverse the GHZ "check" qubits.
+                friend_ghz_qc = ibm_fez_ghz_circuit(friend.size, friend_label=friend.label).inverse()
+                qc.compose(friend_ghz_qc, qubits=friend.qubits + friend.flag_qubits, inplace=True)
+                # We need to undo (reverse) the CNOT between the observer and the friend.
+                qc.cx(observer, friend.qubits[0])
 
         # Apply the rotation based on the observer.
         if observer is ALICE:

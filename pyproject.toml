@@ -11,7 +11,7 @@ qiskit = "^1.4.0"
 pylatexenc = "^2.10"
 seaborn = "^0.13.2"
 notebook = "7.3.2"
-qiskit-aer = "^0.16.1"
+qiskit-aer = "^0.17.1"
 jupyter = "^1.1.1"
 networkx = "^3.3"
 ipykernel = "^6.29.5"
@@ -20,7 +20,7 @@ qiskit-ibm-runtime = "^0.36.1"
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.15.0"
 pre-commit = "^4.1.0"
-ruff = "^0.9.9"
+ruff = "^0.11.12"
 pytest = "^8.3.5"
 
 [tool.mypy]

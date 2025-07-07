@@ -48,8 +48,8 @@ def post_select_results(results: dict, charlie_size: int, debbie_size: int = 1, 
                 # Remove spaces
                 processed_bitstring = bitstring.replace(" ", "")
 
-                friends_bitstring = processed_bitstring[:charlie_size + debbie_size]
-                flags_bitstring = processed_bitstring[charlie_size + debbie_size:]
+                friends_bitstring = processed_bitstring[:charlie_size + 1]
+                flags_bitstring = processed_bitstring[charlie_size + 1:]
 
                 # Extract the flag bits
                 debbie_flags = flags_bitstring[:flag_size_debbie]
