@@ -1726,24 +1726,6 @@ files = [
 ]
 
 [[package]]
-name = "mpmath"
-version = "1.3.0"
-description = "Python library for arbitrary-precision floating-point arithmetic"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "mpmath-1.3.0-py3-none-any.whl", hash = "sha256:a0b2b9fe80bbcd81a6647ff13108738cfb482d481d826cc0e02f5b35e5c88d2c"},
-    {file = "mpmath-1.3.0.tar.gz", hash = "sha256:7a28eb2a9774d00c7bc92411c19a89209d5da7c4c9a9e227be8330a23a25b91f"},
-]
-
-[package.extras]
-develop = ["codecov", "pycodestyle", "pytest (>=4.6)", "pytest-cov", "wheel"]
-docs = ["sphinx"]
-gmpy = ["gmpy2 (>=2.1.0a4) ; platform_python_implementation != \"PyPy\""]
-tests = ["pytest (>=4.6)"]
-
-[[package]]
 name = "mypy"
 version = "1.15.0"
 description = "Optional static typing for Python"
@@ -2941,41 +2923,37 @@ cffi = {version = "*", markers = "implementation_name == \"pypy\""}
 
 [[package]]
 name = "qiskit"
-version = "1.4.0"
+version = "2.1.0"
 description = "An open-source SDK for working with quantum computers at the level of extended quantum circuits, operators, and primitives."
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "qiskit-1.4.0-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:9a6ac6f124f97d62f1843ce2aaf5a6c0311fd25c90a0d2b90a600e0fb2346732"},
-    {file = "qiskit-1.4.0-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:bf1dd1a2d9d5375dd712594dd7de2d9d3cae8cbb22c820a4c0f88b26c03a4a64"},
-    {file = "qiskit-1.4.0-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b563fefc4485cdd44338ad091311c2c72a7855d5c0d0bfdfc6cb35f9050ff800"},
-    {file = "qiskit-1.4.0-cp39-abi3-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:585b6a7d3001ee619af08816d59492840f5650ac831ae62e24877049605abfc5"},
-    {file = "qiskit-1.4.0-cp39-abi3-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:4b818df95c835d419ebcb64ca4cec924c17c9f56486b7d52e636c2f258d2083e"},
-    {file = "qiskit-1.4.0-cp39-abi3-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:b50295c80bffd21194837ee63dae3de0bbf1a432c3571e6e6bb6f8464fd1ee0c"},
-    {file = "qiskit-1.4.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a4efe9ee228c8601b6f0c6b9613d981ae9b0cce8161efc4deb8432800b143d40"},
-    {file = "qiskit-1.4.0-cp39-abi3-win32.whl", hash = "sha256:f47cdd3d4df71581fd9ccffe5c1cb3f10e3e2c3254f8cf0e963e192ed48633f9"},
-    {file = "qiskit-1.4.0-cp39-abi3-win_amd64.whl", hash = "sha256:9cd963e0b74983d8c1a6db5b64446bf57598d181a7ad85bd5e22911b5251303d"},
-    {file = "qiskit-1.4.0.tar.gz", hash = "sha256:c5dcdf171bbec743c90c9b9e9f94a422ec90fcbf908c904d54b6b91f562fad83"},
+    {file = "qiskit-2.1.0-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:da31bc33685722389a30fa26a22c254411b511718c6b05a8033dde53f65f491f"},
+    {file = "qiskit-2.1.0-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:4ebfd5f3dd9ed0d0bb59c192412ee9c51ac639914b1c3c76cf3fb67fe848e4a8"},
+    {file = "qiskit-2.1.0-cp39-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:b75b39bcf73e4faf6233911331e1087218242abaf46f48b2c8870174fffaf5e1"},
+    {file = "qiskit-2.1.0-cp39-abi3-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:763ea321d168a2e03b9b5710d35a2e71d44bde72fd7bd980437a172b6834b110"},
+    {file = "qiskit-2.1.0-cp39-abi3-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:3ad89c7c1a15dd5df1ccf4c725d82b2faeae364d58b73eee800b4cd73be9990b"},
+    {file = "qiskit-2.1.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3169a93a8edf0bb791315dcf0dc9d74519f49ec62bcb5d0ac4e5f63717e3982a"},
+    {file = "qiskit-2.1.0-cp39-abi3-win_amd64.whl", hash = "sha256:5755e482392d8c9f9491cde013ce54b2bf30b1c36cfa85c69051259650c7983d"},
+    {file = "qiskit-2.1.0.tar.gz", hash = "sha256:b25233d547779cbb4ee384548e0c5525599212140ceb371879b735b20df5fc9e"},
 ]
 
 [package.dependencies]
 dill = ">=0.3"
 numpy = ">=1.17,<3"
-python-dateutil = ">=2.8.0"
 rustworkx = ">=0.15.0"
 scipy = ">=1.5"
 stevedore = ">=3.0.0"
-symengine = ">=0.11,<0.14"
-sympy = ">=1.3"
 typing-extensions = "*"
 
 [package.extras]
-all = ["qiskit[crosstalk-pass,csp-layout-pass,qasm3-import,visualization]"]
+all = ["qiskit[crosstalk-pass,csp-layout-pass,qasm3-import,qpy-compat,visualization]"]
 crosstalk-pass = ["z3-solver (>=4.7)"]
 csp-layout-pass = ["python-constraint (>=1.4)"]
 qasm3-import = ["qiskit-qasm3-import (>=0.1.0)"]
-visualization = ["Pillow (>=4.2.1)", "matplotlib (>=3.3)", "pydot", "pylatexenc (>=1.4)", "seaborn (>=0.9.0)"]
+qpy-compat = ["symengine (>=0.11,<0.14)", "sympy (>1.3)"]
+visualization = ["Pillow (>=4.2.1)", "matplotlib (>=3.3)", "pydot", "pylatexenc (>=1.4)", "seaborn (>=0.9.0)", "sympy (>=1.3)"]
 
 [[package]]
 name = "qiskit-aer"
@@ -3559,76 +3537,6 @@ files = [
 pbr = ">=2.0.0"
 
 [[package]]
-name = "symengine"
-version = "0.13.0"
-description = "Python library providing wrappers to SymEngine"
-optional = false
-python-versions = "<4,>=3.8"
-groups = ["main"]
-files = [
-    {file = "symengine-0.13.0-cp310-cp310-macosx_10_13_x86_64.whl", hash = "sha256:259fd4111c7a70c72bdff5686de1949e8132baeb612eacdaf8837720c6fe449b"},
-    {file = "symengine-0.13.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:44f2eb28a1e36db0bbd6679435412f79da9743bf9c1cb3eff25e0c343b7ddd48"},
-    {file = "symengine-0.13.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d141712fa14d9138bd19e64b10392f850c68d88cd7db29f1bda33e32d1095559"},
-    {file = "symengine-0.13.0-cp310-cp310-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:830226d933bfcdb93546e4062541627d9a3bc7a178a63fb16c002eb5c5221938"},
-    {file = "symengine-0.13.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a08090163819a0bbfa97d64bd2d8dac2c5268147ed9c242799d7f7e8728a6f4e"},
-    {file = "symengine-0.13.0-cp310-cp310-win_amd64.whl", hash = "sha256:1e435dcd8ed25e4c7c21ab1c0376be910efc7f35da76d532367df27b359f0358"},
-    {file = "symengine-0.13.0-cp311-cp311-macosx_10_13_x86_64.whl", hash = "sha256:da0eba7e106095cdce88eb275c8a9d7c4586ad88f229394c53e1184155c00745"},
-    {file = "symengine-0.13.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:b0c175f4f895a73a925508af03faf7efd6cad8593256bbdb5346bd996d3ec5c8"},
-    {file = "symengine-0.13.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e58d1e2abd08381aa0cf24c88c0e8b7f592df92619b51e32d36835fbd2dd6ae8"},
-    {file = "symengine-0.13.0-cp311-cp311-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:1db745f2c7a3c5e83510cf4decb43201f43552dfb05ad8af9787c89708be9ede"},
-    {file = "symengine-0.13.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b2572c98b09ac284db6ecff63f6170461194dc94c4209afd34c092ec67873d85"},
-    {file = "symengine-0.13.0-cp311-cp311-win_amd64.whl", hash = "sha256:12727f02a2919f005aee48e68e0cbb70cf857b19385857b4d985d1c9b075f620"},
-    {file = "symengine-0.13.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:cf91d24f1bfd6d53228593c7804dd106b71b19674d5afc4fa322d516e1793bdd"},
-    {file = "symengine-0.13.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:c5615b7eb68890917abd390ebb10434a949165f6064741c1a8cc345fee14e855"},
-    {file = "symengine-0.13.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:fb92bdf0890de264abaeacbfbdbd4dd7444b94057bd47958d913b662e549ad8a"},
-    {file = "symengine-0.13.0-cp312-cp312-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:7b3bce486fbc0b87970ed1b10ca9d5cafb1fd6b66382fe631261d83592851d7e"},
-    {file = "symengine-0.13.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f7e6bae9cfcdde2775d92fbb0abe3ef04e32f65ebc4c2d164ca33f4da202d4a7"},
-    {file = "symengine-0.13.0-cp312-cp312-win_amd64.whl", hash = "sha256:bced0a1dbdb94737c299384c85ddbad6944ce8dadc334f7bb8dbbd8f6c965807"},
-    {file = "symengine-0.13.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:5d34df77971538e4c29f2d8e5ef7f459c2179465e6cdb7dfd48b79b87ecd8f4d"},
-    {file = "symengine-0.13.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:ab2661d9b18867e7c6edbfa7a74b8b0a2a694bd24aa08003dc3214f77cb9d6f2"},
-    {file = "symengine-0.13.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:53f27b9013878ee4419d8e853664d8ae4b68419e3f4b9b5b7f503d32bf904755"},
-    {file = "symengine-0.13.0-cp313-cp313-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:27987f75ce08c64f453e2b9b74fec6ffc5ca418c4deca0b75580979d4a4e242a"},
-    {file = "symengine-0.13.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e9ea9410330ea15ed4137d7a0a3c43caccacb71490e18036ce5182d08c93baf8"},
-    {file = "symengine-0.13.0-cp313-cp313-win_amd64.whl", hash = "sha256:5031eb7a5c6675d5195bb57f93cc7d9ac5a7a9a826d4ad6f6b2927746ed7e6e6"},
-    {file = "symengine-0.13.0-cp313-cp313t-macosx_10_13_x86_64.whl", hash = "sha256:ce0e5dfb19943bcf3e44a4485bcac4c5533ba3705c63083494eed0b3bf246076"},
-    {file = "symengine-0.13.0-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:c3b77dc54bf1181f6bd3b3338c4e6e5973a8b0fa20a189d15563ef5626e57b04"},
-    {file = "symengine-0.13.0-cp313-cp313t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ca7c3f6c168f6f5b06b421833c3d3baae56067a94b671bdffbe09b8e4fefd9be"},
-    {file = "symengine-0.13.0-cp313-cp313t-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:847523de682416811bacb3ad11507e663b3522fbb35cd27184757e9956d0eaf0"},
-    {file = "symengine-0.13.0-cp313-cp313t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ec2fc1b7d96426463f0c9011e9fb88459d906477c1baa8a996dde6fb2bfa99d4"},
-    {file = "symengine-0.13.0-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:6e371bb2da3867085779c1c21bbb1c85f9634c76c8a76c08562ea113e3dfcd85"},
-    {file = "symengine-0.13.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:cf7c62478b19683d54e4d93faa5b89303beae25db0c503a105a70d266dc99fa9"},
-    {file = "symengine-0.13.0-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:fdb21158cf3e2ba87e441f21ecc7724f108b8db17c0fd1880f9f531602bab1f3"},
-    {file = "symengine-0.13.0-cp38-cp38-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:1848d366b359ff69ef5dac148b30ca04c7339a7d3bcab28419d411e68c0cc011"},
-    {file = "symengine-0.13.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:242f817e890a0a50d52ed6b2bfd1aad19636a58db700c7995bbe1ceeaebd9d08"},
-    {file = "symengine-0.13.0-cp38-cp38-win_amd64.whl", hash = "sha256:af79cf2b9645fb55216850185987b2e9347db71e42e87b6402e4bbd41710b316"},
-    {file = "symengine-0.13.0-cp39-cp39-macosx_10_13_x86_64.whl", hash = "sha256:17ae9d1c781a60ac48d07fa30f39a2d237f9da95e9e81f6a24b1c16908e9cad2"},
-    {file = "symengine-0.13.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:5264157a95f6d09dd044cee6abcbc176e649c487638b7f32199f387f37ad82a5"},
-    {file = "symengine-0.13.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:f01a6d0829b4881d5f831ae7848eb0d82b80d8b46b5689f1bf27069672370f75"},
-    {file = "symengine-0.13.0-cp39-cp39-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:35ec68b11c2df2be1a236d0c028edb5b331909b16666d7a9fe99a4a5810afec7"},
-    {file = "symengine-0.13.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b4357fed87083e8719fcffd8bd0e7ddd16172e319343362512f681e472ac5668"},
-    {file = "symengine-0.13.0-cp39-cp39-win_amd64.whl", hash = "sha256:a41be31816e5e51e9063bf26de07faf3751de7a133dbbec149632de702a28e18"},
-    {file = "symengine-0.13.0.tar.gz", hash = "sha256:ab83a08897ebf12579702c2b71ba73d4732fb706cc4291d810aedf39c690c14c"},
-]
-
-[[package]]
-name = "sympy"
-version = "1.13.3"
-description = "Computer algebra system (CAS) in Python"
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-files = [
-    {file = "sympy-1.13.3-py3-none-any.whl", hash = "sha256:54612cf55a62755ee71824ce692986f23c88ffa77207b30c1368eda4a7060f73"},
-    {file = "sympy-1.13.3.tar.gz", hash = "sha256:b27fd2c6530e0ab39e275fc9b683895367e51d5da91baa8d3d64db2565fec4d9"},
-]
-
-[package.dependencies]
-mpmath = ">=1.1.0,<1.4"
-
-[package.extras]
-dev = ["hypothesis (>=6.70.0)", "pytest (>=7.1.0)"]
-
-[[package]]
 name = "terminado"
 version = "0.18.1"
 description = "Tornado websocket backend for the Xterm.js Javascript terminal emulator library."
@@ -3864,4 +3772,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "~3.12"
-content-hash = "5eed6f5797e8f3269356c8bf79fd98ad54757024f29084cba6844328064b4343"
+content-hash = "9c508a682555d5fff25eb6a7b20b28bb81efeca6def0ec5a36e9d1879e6d4a77"
