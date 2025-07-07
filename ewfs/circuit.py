@@ -103,12 +103,9 @@ def ghz_ewfs_circuit(qc: QuantumCircuit, charlie_size: int, debbie_size: int) ->
     """
     # Compose Charlie's GHZ circuit
     charlie_ghz_qc = ibm_fez_ghz_circuit(charlie_size, friend_label="Charlie")
-    debbie_ghz_qc = ibm_fez_ghz_circuit(debbie_size, friend_label="Debbie") if debbie_size > 0 else None
-
-    circuits = [qc, charlie_ghz_qc]
-    # If Debbie's GHZ circuit is not None, add it to the circuits list
-    if debbie_ghz_qc:
-        circuits.append(debbie_ghz_qc)
+    
+    debbie_ghz_qc = ibm_fez_ghz_circuit(debbie_size, friend_label="Debbie") if debbie_size > 0 else QuantumCircuit()
+    circuits = [qc, charlie_ghz_qc, debbie_ghz_qc]
 
     combined_circuit = QuantumCircuit(
         *[qreg for circuit in circuits for qreg in circuit.qregs],
