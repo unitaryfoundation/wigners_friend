@@ -911,14 +911,14 @@ publish = ["build", "twine"]
 
 [[package]]
 name = "ibm-platform-services"
-version = "0.66.2"
+version = "0.68.0"
 description = "Python client library for IBM Cloud Platform Services"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "ibm_platform_services-0.66.2-py3-none-any.whl", hash = "sha256:43010e7fe0380a3cd01c3cb276921c1a5a8a0b2855d321790fae0e3483fcee8e"},
-    {file = "ibm_platform_services-0.66.2.tar.gz", hash = "sha256:7e1bef0570f84d022c101d98ce6ddabf1968fc09116badc759e5f88f3b6e3ecf"},
+    {file = "ibm_platform_services-0.68.0-py3-none-any.whl", hash = "sha256:7f25b688f2f52c6738686a82f8fffd47967cd96191b88112fb6f26a2f9f21bed"},
+    {file = "ibm_platform_services-0.68.0.tar.gz", hash = "sha256:c5cd1baf7835684e8abc720a56daf3e4f0c6db39d9e530279280ee541f00c139"},
 ]
 
 [package.dependencies]
