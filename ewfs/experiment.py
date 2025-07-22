@@ -56,7 +56,7 @@ def run_experiment(
 
                 # Use backend to transpile circuits.
                 transpiled_circuits = {
-                    k: qiskit.transpile(circuit, backend, optimization_level=0) for k, circuit in circuits.items()
+                    k: qiskit.transpile(circuit, backend, optimization_level=3) for k, circuit in circuits.items()
                 }
 
                 # Run task.
