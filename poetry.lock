@@ -911,14 +911,14 @@ publish = ["build", "twine"]
 
 [[package]]
 name = "ibm-platform-services"
-version = "0.68.0"
+version = "0.68.1"
 description = "Python client library for IBM Cloud Platform Services"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "ibm_platform_services-0.68.0-py3-none-any.whl", hash = "sha256:7f25b688f2f52c6738686a82f8fffd47967cd96191b88112fb6f26a2f9f21bed"},
-    {file = "ibm_platform_services-0.68.0.tar.gz", hash = "sha256:c5cd1baf7835684e8abc720a56daf3e4f0c6db39d9e530279280ee541f00c139"},
+    {file = "ibm_platform_services-0.68.1-py3-none-any.whl", hash = "sha256:4d7d94c97dc958ed29de9dd622e36059206cba3dbf77955fa20ba255ad74662e"},
+    {file = "ibm_platform_services-0.68.1.tar.gz", hash = "sha256:8b2ff46defdf61c6748f658c37973187b29c79befc0116527724bf47e19cea09"},
 ]
 
 [package.dependencies]
@@ -2744,7 +2744,8 @@ version = "311"
 description = "Python for Window Extensions"
 optional = false
 python-versions = "*"
-groups = ["main", "dev"]
+groups = ["main"]
+markers = "sys_platform == \"win32\" and platform_python_implementation != \"PyPy\""
 files = [
     {file = "pywin32-311-cp310-cp310-win32.whl", hash = "sha256:d03ff496d2a0cd4a5893504789d4a15399133fe82517455e78bad62efbb7f0a3"},
     {file = "pywin32-311-cp310-cp310-win_amd64.whl", hash = "sha256:797c2772017851984b97180b0bebe4b620bb86328e8a884bb626156295a63b3b"},
