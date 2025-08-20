@@ -122,14 +122,12 @@ class EWFS:
 
         if self.friend_state == GHZ:
             creg_charlie_flag_qubits = ClassicalRegister(len(self.charlie_flag_qubits), "charlie_flag_qubits")
-            creg_debbie_flag_qubits = ClassicalRegister(len(self.debbie_flag_qubits), "debbie_flag_qubits")
-
-            qc.add_register(creg_debbie_flag_qubits)
             qc.add_register(creg_charlie_flag_qubits)
-
-            # Now we measure the flag qubits.
             qc.measure(self.charlie_flag_qubits, creg_charlie_flag_qubits)
-            qc.measure(self.debbie_flag_qubits, creg_debbie_flag_qubits)
+            if self.debbie_size > 0:
+                creg_debbie_flag_qubits = ClassicalRegister(len(self.debbie_flag_qubits), "debbie_flag_qubits")
+                qc.add_register(creg_debbie_flag_qubits)
+                qc.measure(self.debbie_flag_qubits, creg_debbie_flag_qubits)
 
         return qc
 
