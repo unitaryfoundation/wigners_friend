@@ -1,15 +1,18 @@
 """Violations of the EWFS scenario."""
 
-from ewfs.utils import decode_results
+from ewfs.utils import decode_results, post_select_results
 from ewfs.setting import SETTINGS, PEEK, REVERSE_1, REVERSE_2
 from ewfs.strategy import MAJORITY_VOTE
 from ewfs.observer import ALICE, BOB
 
 
 def compute_violations(
-    results: dict, charlie_size: int, debbie_size: int, strategy: str, verbose: bool = False
+    results: dict, charlie_size: int, debbie_size: int, strategy: str, friend_state: str, flag_size: int = 0, verbose: bool = False
 ) -> dict:
     """Compute violation values based on strategy."""
+    if friend_state == "ghz":
+        results = post_select_results(results, charlie_size, debbie_size, flag_size, 0) #debbie flag size hardcoded to 0
+
     if strategy is MAJORITY_VOTE:
         results = decode_results(results=results, charlie_size=charlie_size, debbie_size=debbie_size)
 

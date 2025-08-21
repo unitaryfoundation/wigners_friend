@@ -18,6 +18,7 @@ def run_experiment(
     debbie_sizes: range | None = None,
     strategy: str = "majority_vote",
     friend_state: str = "cnot_ladder",
+    flag_size: int = 0,
     backend: qiskit.providers.Backend | None = None,
     settings: list[tuple[str, ...]] | None = None,
     save: bool = False,
@@ -93,6 +94,8 @@ def run_experiment(
                 charlie_size=charlie_size,
                 debbie_size=debbie_size,
                 strategy=strategy,
+                friend_state=friend_state,
+                flag_size=flag_size,
                 verbose=True,
             )
             print(f"Violations: {violations}\n")
