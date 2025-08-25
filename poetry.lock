@@ -1346,14 +1346,14 @@ jupyter_server = ">=1.1.2"
 
 [[package]]
 name = "jupyter-server"
-version = "2.16.0"
+version = "2.17.0"
 description = "The backend—i.e. core services, APIs, and REST endpoints—to Jupyter web applications."
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "jupyter_server-2.16.0-py3-none-any.whl", hash = "sha256:3d8db5be3bc64403b1c65b400a1d7f4647a5ce743f3b20dbdefe8ddb7b55af9e"},
-    {file = "jupyter_server-2.16.0.tar.gz", hash = "sha256:65d4b44fdf2dcbbdfe0aa1ace4a842d4aaf746a2b7b168134d5aaed35621b7f6"},
+    {file = "jupyter_server-2.17.0-py3-none-any.whl", hash = "sha256:e8cb9c7db4251f51ed307e329b81b72ccf2056ff82d50524debde1ee1870e13f"},
+    {file = "jupyter_server-2.17.0.tar.gz", hash = "sha256:c38ea898566964c888b4772ae1ed58eca84592e88251d2cfc4d171f81f7e99d5"},
 ]
 
 [package.dependencies]
@@ -1366,7 +1366,6 @@ jupyter-events = ">=0.11.0"
 jupyter-server-terminals = ">=0.4.4"
 nbconvert = ">=6.4.4"
 nbformat = ">=5.3.0"
-overrides = ">=5.0"
 packaging = ">=22.0"
 prometheus-client = ">=0.9"
 pywinpty = {version = ">=2.0.1", markers = "os_name == \"nt\""}
@@ -2114,18 +2113,6 @@ files = [
     {file = "numpy-2.3.2-pp311-pypy311_pp73-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:aa098a5ab53fa407fded5870865c6275a5cd4101cfdef8d6fafc48286a96e981"},
     {file = "numpy-2.3.2-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:6936aff90dda378c09bea075af0d9c675fe3a977a9d2402f95a87f440f59f619"},
     {file = "numpy-2.3.2.tar.gz", hash = "sha256:e0486a11ec30cdecb53f184d496d1c6a20786c81e55e41640270130056f8ee48"},
-]
-
-[[package]]
-name = "overrides"
-version = "7.7.0"
-description = "A decorator to automatically detect mismatch when overriding a method."
-optional = false
-python-versions = ">=3.6"
-groups = ["main"]
-files = [
-    {file = "overrides-7.7.0-py3-none-any.whl", hash = "sha256:c7ed9d062f78b8e4c1a7b70bd8796b35ead4d9f510227ef9c5dc7626c60d7e49"},
-    {file = "overrides-7.7.0.tar.gz", hash = "sha256:55158fa3d93b98cc75299b1e67078ad9003ca27945c76162c1c0766d6f91820a"},
 ]
 
 [[package]]
@@ -2888,7 +2875,8 @@ version = "3.0.0"
 description = ""
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "dev"]
+groups = ["main"]
+markers = "os_name == \"nt\""
 files = [
     {file = "pywinpty-3.0.0-cp310-cp310-win_amd64.whl", hash = "sha256:327b6034e0dc38352c1c99a7c0b3e54941b4e506a5f21acce63609cd2ab6cce2"},
     {file = "pywinpty-3.0.0-cp311-cp311-win_amd64.whl", hash = "sha256:29daa71ac5dcbe1496ef99f4cde85a732b1f0a3b71405d42177dbcf9ee405e5a"},
