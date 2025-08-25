@@ -925,14 +925,14 @@ publish = ["build", "twine"]
 
 [[package]]
 name = "ibm-platform-services"
-version = "0.68.1"
+version = "0.68.2"
 description = "Python client library for IBM Cloud Platform Services"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "ibm_platform_services-0.68.1-py3-none-any.whl", hash = "sha256:4d7d94c97dc958ed29de9dd622e36059206cba3dbf77955fa20ba255ad74662e"},
-    {file = "ibm_platform_services-0.68.1.tar.gz", hash = "sha256:8b2ff46defdf61c6748f658c37973187b29c79befc0116527724bf47e19cea09"},
+    {file = "ibm_platform_services-0.68.2-py3-none-any.whl", hash = "sha256:17a9f6f04e7ed09958b90a67d916ad2a3fd209fa5401a07fdff75d48ea5759f9"},
+    {file = "ibm_platform_services-0.68.2.tar.gz", hash = "sha256:720bc04b0ad47fdee71795f467f4b6b744ec6629b442ca00f6fc82ae119f9505"},
 ]
 
 [package.dependencies]
@@ -2888,7 +2888,8 @@ version = "3.0.0"
 description = ""
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "dev"]
+groups = ["main"]
+markers = "os_name == \"nt\""
 files = [
     {file = "pywinpty-3.0.0-cp310-cp310-win_amd64.whl", hash = "sha256:327b6034e0dc38352c1c99a7c0b3e54941b4e506a5f21acce63609cd2ab6cce2"},
     {file = "pywinpty-3.0.0-cp311-cp311-win_amd64.whl", hash = "sha256:29daa71ac5dcbe1496ef99f4cde85a732b1f0a3b71405d42177dbcf9ee405e5a"},
