@@ -2426,14 +2426,14 @@ testing = ["coverage", "pytest", "pytest-benchmark"]
 
 [[package]]
 name = "pre-commit"
-version = "4.2.0"
+version = "4.3.0"
 description = "A framework for managing and maintaining multi-language pre-commit hooks."
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
 files = [
-    {file = "pre_commit-4.2.0-py2.py3-none-any.whl", hash = "sha256:a009ca7205f1eb497d10b845e52c838a98b6cdd2102a6c8e4540e94ee75c58bd"},
-    {file = "pre_commit-4.2.0.tar.gz", hash = "sha256:601283b9757afd87d40c4c4a9b2b5de9637a8ea02eaff7adc2d0fb4e04841146"},
+    {file = "pre_commit-4.3.0-py2.py3-none-any.whl", hash = "sha256:2b0747ad7e6e967169136edffee14c16e148a778a54e4f967921aa1ebf2308d8"},
+    {file = "pre_commit-4.3.0.tar.gz", hash = "sha256:499fe450cc9d42e9d58e606262795ecb64dd05438943c62b66f6a8673da30b16"},
 ]
 
 [package.dependencies]
@@ -3660,7 +3660,8 @@ version = "0.4.0"
 description = "SSPI API bindings for Python"
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "dev"]
+groups = ["main"]
+markers = "sys_platform == \"win32\""
 files = [
     {file = "sspilib-0.4.0-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:ac8bb5d2d2327d9d1eb1e325dca7a5d94a44c3b5f0317eb1141bcbf33ef2d926"},
     {file = "sspilib-0.4.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:e6b88d4961c80f04e1b0165d18195217e8471d7e5373b7746a8e518e3f12a4bf"},
@@ -3985,4 +3986,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "~3.12"
-content-hash = "490100b9f1082fb526b863cb8a86557b84fa2571daea9038e4f4238c346ef861"
+content-hash = "0fb857e1c81847e1744505c72552b891799afa6eb687773afadc70665f5024ee"
