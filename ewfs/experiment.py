@@ -45,20 +45,24 @@ def run_experiment(
 
                 # Create circuits for each EWFS setting.
                 for alice_setting, bob_setting in settings:
-                    circuit = EWFS(
+                    ewfs = EWFS(
                         alice_setting=alice_setting,
                         bob_setting=bob_setting,
                         friend_state=friend_state,
                         strategy=strategy,
                         charlie_size=charlie_size,
                         debbie_size=debbie_size,
-                    ).circuit()
+                    )
+                    circuit = ewfs.circuit()
+                    charlie_layout = ewfs.charlie_layout
                     circuits[(alice_setting, bob_setting)] = circuit
 
+                # TODO: map the qubits to the ghz layout on ibm backends.
                 # Use backend to transpile circuits.
                 transpiled_circuits = {
                     k: qiskit.transpile(circuit, backend, optimization_level=3) for k, circuit in circuits.items()
                 }
+                # print the circuit to see the qubit layout.
 
                 # Run task.
                 friend_size = f"{charlie_size}_{debbie_size}"

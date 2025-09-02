@@ -75,6 +75,8 @@ class EWFS:
         self.charlie_flag_qubits: list[int] = []
         self.debbie_flag_qubits: list[int] = []
 
+        self.charlie_layout = None
+
     def circuit(self) -> QuantumCircuit:
         """Generate the circuit for extended Wigner's friend scenario."""
         # Create the Quantum Circuit with the defined registers

@@ -203,6 +203,7 @@ def ibm_fez_ghz_circuit(friend_size: int, num_ghz_qubits: int = 54, friend_label
     )
     build_result = ghz_builder.build()
     circuit: QuantumCircuit = build_result["circuit_with_flags"]
+    layout = build_result["layout_with_flags"]
 
     # If there is just one element, append a zero to the label.
     friend_register_label = f"{friend_label}_0" if friend_size == 1 else friend_label
