@@ -9,16 +9,16 @@ def decode_results(results: dict, charlie_size: int) -> dict:
 
     # For each setting, there is a dictionary of measurement results.
     for setting in results:
-        if setting == (PEEK, REVERSE_1) or setting == (PEEK, REVERSE_2):
+        if setting[0] == PEEK:
             # Debbie's size is 1 because no PEEK setting
-            debbie_size = 1
+            bob_size = 1
 
             setting_results: dict = {}
             # Decode the keys for each measurement result of the setting.
             for k, v in results[setting].items():
-                alice_friend, bob_friend = k[:charlie_size], k[-debbie_size:]
+                alice_result, bob_result = k[-charlie_size:], k[:bob_size]
 
-                alice_zero_count, bob_zero_count = alice_friend.count("0"), bob_friend.count("0")
+                alice_zero_count, bob_zero_count = alice_result.count("0"), bob_result.count("0")
 
                 alice_decoding = "0" if alice_zero_count >= charlie_size // 2 + 1 else "1"
                 bob_decoding = "0" if bob_zero_count >= 1 else "1"
@@ -34,7 +34,7 @@ def decode_results(results: dict, charlie_size: int) -> dict:
     return decoded_results
 
 
-def post_select_results(results: dict, charlie_size: int, flag_size: int = 0) -> dict:
+def post_select_results(results: dict, flag_size: int = 0) -> dict:
     """ 
     Check the measurement outcomes of flag qubits and post-select results.
     """
@@ -50,7 +50,7 @@ def post_select_results(results: dict, charlie_size: int, flag_size: int = 0) ->
             flags_bitstring = processed_bitstring[:flag_size]
             friends_bitstring = processed_bitstring[flag_size:]
 
-            if all(flag == "0" for flag in flags_bitstring):
+            if flags_bitstring=="0"*flag_size:
                 post_selected_results_setting[friends_bitstring] = count
     
         post_selected_results[setting] = post_selected_results_setting
