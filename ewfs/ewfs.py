@@ -1,15 +1,14 @@
 import numpy as np
 from collections import deque
-from qiskit.transpiler import CouplingMap
-from qiskit import QuantumCircuit
-from qiskit.providers import Backend
 from dataclasses import dataclass
 
-from qiskit_ibm_runtime.fake_provider import FakeFez
 from qiskit_aer import Aer
-from qiskit import transpile
-from qiskit_ibm_runtime import SamplerV2
+from qiskit import QuantumCircuit, transpile
+from qiskit.providers import Backend
+from qiskit.transpiler import CouplingMap
 
+from qiskit_ibm_runtime.fake_provider import FakeFez
+from qiskit_ibm_runtime import SamplerV2
 
 
 @dataclass
@@ -28,8 +27,8 @@ class EWFS:
         coupling_map: CouplingMap,
         layout: list,
         flag_qubits: list,
-        shots: int = 10_000,
-        backend: Backend = Aer.get_backend("aer_simulator"),
+        shots: int,
+        backend: Backend,
     ) -> None:
         """Initialize the extended Wigner's friend scenario."""
         # Settings for Alice and Bob.
@@ -53,13 +52,9 @@ class EWFS:
         self.bob = self.layout_dict[self.layout[0]]
 
         # The first two qubits should always be the system qubits.
-        self.charlie_qubits = [
-            self.layout_dict[self.data_qubits[i]]
-            for i in range(2, len(self.data_qubits))
-        ]
+        self.charlie_qubits = [self.layout_dict[self.data_qubits[i]] for i in range(2, len(self.data_qubits))]
         self.charlie_size = len(self.charlie_qubits)
 
-        self.sys_size = 2
         self.meas_size = 2
 
         # (Optimized) angles and beta term used for Alice and Bob measurement
@@ -112,7 +107,7 @@ class EWFS:
         return qc
 
     @property
-    def value(self) -> dict:
+    def probability_distribution(self) -> dict:
         transpiled_circuit = transpile(self.circuit, self.backend, optimization_level=3)
         sampler = SamplerV2(self.backend)
 
@@ -163,7 +158,7 @@ class EWFS:
         return directed_edges
 
     def _ghz(self, qc: QuantumCircuit, invert: bool = False) -> None:
-        print('ghz_ops: ', self.ghz_ops)
+        print("ghz_ops: ", self.ghz_ops)
         ops = self.ghz_ops if not invert else self.ghz_ops[::-1]
         for op in ops:
             qc.cx(self.layout_dict[op[0]], self.layout_dict[op[1]])
@@ -179,7 +174,7 @@ class EWFS:
             ops_reverse = self.flag_ops[::-1]
             for op in ops_reverse:
                 qc.cx(op[0], op[1])
-        print('flag_ops: ', self.flag_ops)
+        print("flag_ops: ", self.flag_ops)
 
     def _initialize_circuit(self) -> QuantumCircuit:
         """Initialize the classical measurement registers based on the strategy."""
@@ -188,7 +183,6 @@ class EWFS:
         else:
             meas_size = 2
         meas_size += len(self.flag_qubits)
-        # measurement = ClassicalRegister(size, name="measurement")
 
         qc = QuantumCircuit(len(self.layout), meas_size)
 
@@ -253,7 +247,6 @@ class EWFS:
         friend: Friend | None,
         angle: float,
     ) -> None:
-
         if friend is not None:
             qc.barrier(observer, friend.qubits)
             # do the inverse of ghz() function
@@ -311,7 +304,7 @@ class EWFS:
                 setting_results: dict = {}
                 # Decode the keys for each measurement result of the setting.
                 for k, v in results[setting].items():
-                    alice_result, bob_result = k[-self.charlie_size:], k[:bob_size]
+                    alice_result, bob_result = k[-self.charlie_size :], k[:bob_size]
 
                     alice_zero_count, bob_zero_count = alice_result.count("0"), bob_result.count("0")
 
@@ -329,28 +322,30 @@ class EWFS:
         return decoded_results
 
 
-# layout = [53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 56, 63, 64, 65, 66, 67, 57, 68, 69, 70, 71, 58]
+if __name__ == "__main__":
+    # layout = [53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 56, 63, 64, 65, 66, 67, 57, 68, 69, 70, 71, 58]
 
-# flags = [56, 58]
+    # flags = [56, 58]
 
-layout = [53, 52, 51, 50, 49, 48, 47, 46, 57, 67, 68, 69, 70, 71, 58]
+    layout = [53, 52, 51, 50, 49, 48, 47, 46, 57, 67, 68, 69, 70, 71, 58]
+    flags = [58]
+    coupling_map = FakeFez().coupling_map
+    backend = Aer.get_backend("aer_simulator")
 
-flags = [58]
-backend = FakeFez()
-coupling_map = backend.coupling_map
-#backend = Aer.get_backend("aer_simulator")
+    settings = [("peek", "reverse_1"), ("peek", "reverse_2"), ("reverse_2", "reverse_1"), ("reverse_2", "reverse_2")]
+    semi_brukner = [
+        EWFS(
+            alice_setting=s1,
+            bob_setting=s2,
+            backend=backend,
+            shots=10_000,
+            coupling_map=coupling_map,
+            layout=layout,
+            strategy="majority_vote",
+            flag_qubits=flags,
+        )
+        for s1, s2 in settings
+    ]
 
-settings = [("peek", "reverse_1"), ("peek", "reverse_2"), ("reverse_2", "reverse_1"), ("reverse_2", "reverse_2")]
-
-
-semi_brukner = [EWFS(
-    alice_setting=s1,
-    bob_setting=s2,
-    coupling_map=coupling_map,
-    layout=layout,
-    strategy="majority_vote",
-    flag_qubits=flags) for s1, s2 in settings]
-
-
-for x in semi_brukner:
-    print(x.value)
+    for x in semi_brukner:
+        print(x.probability_distribution)
