@@ -159,22 +159,31 @@ class EWFS:
 
     def _ghz(self, qc: QuantumCircuit, invert: bool = False) -> None:
         print("ghz_ops: ", self.ghz_ops)
-        ops = self.ghz_ops if not invert else self.ghz_ops[::-1]
-        for op in ops:
-            qc.cx(self.layout_dict[op[0]], self.layout_dict[op[1]])
+        if not invert:
+            # Forward application: generate and store GHZ ops
+            self.ghz_ops = self._get_directed_tree_edges()
+            print("ghz_ops: ", self.ghz_ops)
+            for op in self.ghz_ops:
+                qc.cx(self.layout_dict[op[0]], self.layout_dict[op[1]])
+        else:
+            # Inverse application: replay stored ops in reverse order
+            for op in reversed(self.ghz_ops):
+                qc.cx(self.layout_dict[op[0]], self.layout_dict[op[1]])
 
     def _flag_operations(self, qc: QuantumCircuit, invert: bool = False) -> None:
-        for flag in self.flag_qubits:
-            neighbors = self.coupling_map.neighbors(flag)
-            for qubit in neighbors:
-                qc.cx(self.layout_dict[qubit], self.layout_dict[flag])
-                self.flag_ops.append((self.layout_dict[qubit], self.layout_dict[flag]))
-
-        if invert:
-            ops_reverse = self.flag_ops[::-1]
-            for op in ops_reverse:
+        if not invert:
+            # Forward application: generate and store flag_ops
+            self.flag_ops = []
+            for flag in self.flag_qubits:
+                neighbors = self.coupling_map.neighbors(flag)
+                for qubit in neighbors:
+                    qc.cx(self.layout_dict[qubit], self.layout_dict[flag])
+                    self.flag_ops.append((self.layout_dict[qubit], self.layout_dict[flag]))
+            print("flag_ops: ", self.flag_ops)
+        else:
+            # Inverse application: replay stored ops in reverse order.
+            for op in reversed(self.flag_ops):
                 qc.cx(op[0], op[1])
-        print("flag_ops: ", self.flag_ops)
 
     def _initialize_circuit(self) -> QuantumCircuit:
         """Initialize the classical measurement registers based on the strategy."""
@@ -279,7 +288,6 @@ class EWFS:
             post_selected_results_setting = {}
 
             for bitstring, count in results[setting].items():
-                # Remove spaces
                 processed_bitstring = bitstring.replace(" ", "")
 
                 flags_bitstring = processed_bitstring[:flag_size]
