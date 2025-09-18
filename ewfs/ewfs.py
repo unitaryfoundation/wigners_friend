@@ -107,7 +107,7 @@ class EWFS:
         return qc
 
     @property
-    def probability_distribution(self) -> dict:
+    def results(self) -> dict:
         transpiled_circuit = transpile(self.circuit, self.backend, optimization_level=3)
         sampler = SamplerV2(self.backend)
 
@@ -118,7 +118,29 @@ class EWFS:
         probabilities = {key: value / self.shots for key, value in counts.items()}
 
         results[(self.alice_setting, self.bob_setting)] = probabilities
-        return self._post_select_results(results, len(self.flag_qubits))
+        return results
+
+    @property
+    def post_select_results(self) -> dict:
+        """Check the measurement outcomes of flag qubits and post-select results."""
+        flag_size = len(self.flag_qubits)
+
+        post_selected_results = {}
+
+        for setting in self.results:
+            post_selected_results_setting = {}
+
+            for bitstring, count in self.results[setting].items():
+                processed_bitstring = bitstring.replace(" ", "")
+
+                flags_bitstring = processed_bitstring[:flag_size]
+                friends_bitstring = processed_bitstring[flag_size:]
+
+                if flags_bitstring == "0" * flag_size:
+                    post_selected_results_setting[friends_bitstring] = count
+
+            post_selected_results[setting] = post_selected_results_setting
+        return post_selected_results
 
     def _get_directed_tree_edges(self) -> list:
         """Determines the set of directed edges for a tree by performing a BFS.
@@ -280,26 +302,7 @@ class EWFS:
             qc.h(observer)
             qc.rz(angle, observer)
 
-    def _post_select_results(self, results: dict, flag_size: int = 0) -> dict:
-        """Check the measurement outcomes of flag qubits and post-select results."""
-        post_selected_results = {}
-
-        for setting in results:
-            post_selected_results_setting = {}
-
-            for bitstring, count in results[setting].items():
-                processed_bitstring = bitstring.replace(" ", "")
-
-                flags_bitstring = processed_bitstring[:flag_size]
-                friends_bitstring = processed_bitstring[flag_size:]
-
-                if flags_bitstring == "0" * flag_size:
-                    post_selected_results_setting[friends_bitstring] = count
-
-            post_selected_results[setting] = post_selected_results_setting
-        return post_selected_results
-
-    def _decode_results(self, results: dict) -> dict:
+    def decode_results(self, results: dict) -> dict:
         """Take majority vote of measurement bit-strings."""
         decoded_results = {}
 
@@ -356,4 +359,11 @@ if __name__ == "__main__":
     ]
 
     for x in semi_brukner:
-        print(x.probability_distribution)
+        print(x.post_select_results)
+
+    charlie_size = len(layout) - len(flags) - 2
+    debbie_size = 0
+    flag_size = len(flags)
+
+    dec_res = semi_brukner[0].decode_results(semi_brukner[0].post_select_results)
+    print(dec_res)
