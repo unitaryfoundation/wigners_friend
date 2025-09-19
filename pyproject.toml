@@ -30,6 +30,7 @@ follow_imports = "skip"
 
 [tool.ruff]
 line-length = 120
+extend-exclude = ["*.ipynb"]
 
 [build-system]
 requires = ["poetry-core"]
