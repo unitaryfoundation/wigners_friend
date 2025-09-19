@@ -2,12 +2,9 @@ import numpy as np
 from collections import deque
 from dataclasses import dataclass
 
-from qiskit_aer import Aer
 from qiskit import QuantumCircuit, transpile
 from qiskit.providers import Backend
 from qiskit.transpiler import CouplingMap
-
-from qiskit_ibm_runtime.fake_provider import FakeFez
 from qiskit_ibm_runtime import SamplerV2
 
 
@@ -331,39 +328,3 @@ class EWFS:
                 decoded_results[setting] = results[setting]
 
         return decoded_results
-
-
-if __name__ == "__main__":
-    # layout = [53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 56, 63, 64, 65, 66, 67, 57, 68, 69, 70, 71, 58]
-
-    # flags = [56, 58]
-
-    layout = [53, 52, 51, 50, 49, 48, 47, 46, 57, 67, 68, 69, 70, 71, 58]
-    flags = [58]
-    coupling_map = FakeFez().coupling_map
-    backend = Aer.get_backend("aer_simulator")
-
-    settings = [("peek", "reverse_1"), ("peek", "reverse_2"), ("reverse_2", "reverse_1"), ("reverse_2", "reverse_2")]
-    semi_brukner = [
-        EWFS(
-            alice_setting=s1,
-            bob_setting=s2,
-            backend=backend,
-            shots=10_000,
-            coupling_map=coupling_map,
-            layout=layout,
-            strategy="majority_vote",
-            flag_qubits=flags,
-        )
-        for s1, s2 in settings
-    ]
-
-    for x in semi_brukner:
-        print(x.post_select_results)
-
-    charlie_size = len(layout) - len(flags) - 2
-    debbie_size = 0
-    flag_size = len(flags)
-
-    dec_res = semi_brukner[0].decode_results(semi_brukner[0].post_select_results)
-    print(dec_res)
