@@ -30,9 +30,7 @@ follow_imports = "skip"
 
 [tool.ruff]
 line-length = 120
-
-[tool.ruff.lint.per-file-ignores]
-"*.ipynb" = ["E402"]
+extend-exclude = ["*.ipynb"]
 
 [build-system]
 requires = ["poetry-core"]
