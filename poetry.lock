@@ -2938,7 +2938,8 @@ version = "3.0.2"
 description = "Pseudo terminal support for Windows from Python."
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "dev"]
+groups = ["main"]
+markers = "os_name == \"nt\""
 files = [
     {file = "pywinpty-3.0.2-cp310-cp310-win_amd64.whl", hash = "sha256:65db57fd3387d71e8372b6a54269cbcd0f6dfa6d4616a29e0af749ec19f5c558"},
     {file = "pywinpty-3.0.2-cp311-cp311-win_amd64.whl", hash = "sha256:327790d70e4c841ebd9d0f295a780177149aeb405bca44c7115a3de5c2054b23"},
@@ -3232,14 +3233,14 @@ scipy = ">=1.0"
 
 [[package]]
 name = "qiskit-ibm-runtime"
-version = "0.41.1"
+version = "0.42.0"
 description = "IBM Quantum client for Qiskit Runtime."
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "qiskit_ibm_runtime-0.41.1-py3-none-any.whl", hash = "sha256:30673c532324b343924e860b2b67ea39f2cf26bff15a552ac5ff6cc3fdb5f296"},
-    {file = "qiskit_ibm_runtime-0.41.1.tar.gz", hash = "sha256:e9831956d316a7bd589f4a7a1a0da1e76c95083fbc38746884c3598443babacb"},
+    {file = "qiskit_ibm_runtime-0.42.0-py3-none-any.whl", hash = "sha256:4abf5a88c8506b0bcb23fee5ca99f68a148efa6ccdb252e7e14a53745910adb9"},
+    {file = "qiskit_ibm_runtime-0.42.0.tar.gz", hash = "sha256:125c08e3a2e762ab23b15f1e2c21fdb15a2bfe63e2ac35b019001f139bb2d4f5"},
 ]
 
 [package.dependencies]
@@ -4092,4 +4093,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "~3.12"
-content-hash = "7093f7ef737647abac9da0bfdc4ef6f3517434bea99b61e0e70f2e41e096aa59"
+content-hash = "d73dd8e2253ce9cb79c7102d9f49b941e894fe8b476e0027f7e7fd2a8d4f334d"
