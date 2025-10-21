@@ -151,11 +151,9 @@ class EWFS:
         return directed_edges
 
     def _ghz(self, qc: QuantumCircuit, invert: bool = False) -> None:
-        print("ghz_ops: ", self.ghz_ops)
         if not invert:
             # Forward application: generate and store GHZ ops
             self.ghz_ops = self._get_directed_tree_edges()
-            print("ghz_ops: ", self.ghz_ops)
             for op in self.ghz_ops:
                 qc.cx(self.layout_dict[op[0]], self.layout_dict[op[1]])
         else:
@@ -170,9 +168,9 @@ class EWFS:
             for flag in self.flag_qubits:
                 neighbors = self.coupling_map.neighbors(flag)
                 for qubit in neighbors:
-                    qc.cx(self.layout_dict[qubit], self.layout_dict[flag])
-                    self.flag_ops.append((self.layout_dict[qubit], self.layout_dict[flag]))
-            print("flag_ops: ", self.flag_ops)
+                    if qubit in self.layout:
+                        qc.cx(self.layout_dict[qubit], self.layout_dict[flag])
+                        self.flag_ops.append((self.layout_dict[qubit], self.layout_dict[flag]))
         else:
             # Inverse application: replay stored ops in reverse order.
             for op in reversed(self.flag_ops):
@@ -322,3 +320,20 @@ def decode_results(post_selected_results, charlie_size) -> dict:
             decoded_results[setting] = post_selected_results[setting]
 
     return decoded_results
+
+def double_expect(settings: tuple[str, str], results: dict) -> float:
+    """Expectation value of product of two operators."""
+    probs = results[settings]
+    # <AB> = P(00) - P(01) - P(10) + P(11)
+    return probs.get("00", 0.0) - probs.get("01", 0.0) - probs.get("10", 0.0) + probs.get("11", 0.0)
+
+def semi_brukner_value(probs):
+    
+    A1B2 = double_expect(('peek', 'reverse_1'), probs)
+    A1B3 = double_expect(('peek', 'reverse_2'), probs)
+    A3B2 = double_expect(('reverse_2', 'reverse_1'), probs)
+    A3B3 = double_expect(('reverse_2', 'reverse_2'), probs)
+
+    semi_brukner_violation = -A1B2 + A1B3 - A3B2 - A3B3 - 2
+
+    return semi_brukner_violation
