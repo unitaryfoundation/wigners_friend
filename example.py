@@ -9,11 +9,6 @@ from qiskit_ibm_runtime.fake_provider import FakeFez
 
 coupling_map = FakeFez().coupling_map
 
-def remove_elements(source_list, elements_to_remove):
-    return [item for item in source_list if item not in elements_to_remove]
-
-from qiskit_aer import Aer
-from qiskit import transpile
 
 PEEK = 'peek'
 REVERSE_1 = 'reverse_1'

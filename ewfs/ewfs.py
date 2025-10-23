@@ -112,7 +112,6 @@ class EWFS:
 
         results = {}
         counts = res.data.c.get_counts()
-        # probabilities = {key: value / self.shots for key, value in counts.items()}
 
         results[(self.alice_setting, self.bob_setting)] = counts
         return results
