@@ -1,22 +1,46 @@
-from ewfs import (
+from ewfs.ewfs import (
     EWFS,
     decode_results,
     post_select_results,
     semi_brukner_value,
 )
+from ewfs.layout import (
+    build_complete_binary_tree,
+    get_all_nodes,
+    find_optimal_k_pairs,
+    create_coupling_map_from_selection,
+)
+
 from qiskit_aer import Aer
 from qiskit_ibm_runtime.fake_provider import FakeFez
-
-coupling_map = FakeFez().coupling_map
 
 
 PEEK = 'peek'
 REVERSE_1 = 'reverse_1'
 REVERSE_2 = 'reverse_2'
 
-layout = [53, 52, 51, 50, 49, 48, 47, 46, 57, 67, 68, 69, 70, 71, 58]
+hardware_connectivity = 'fully_connected'
 
-flags = [58]
+if hardware_connectivity == 'fez':
+    layout = [53, 52, 51, 50, 49, 48, 47, 46, 57, 67, 68, 69, 70, 71, 58]
+    flags = [58]
+    coupling_map = FakeFez().coupling_map
+elif hardware_connectivity == 'fully_connected':
+    TREE_DEPTH = 2
+    NUM_PAIRS_TO_SELECT = 1
+
+    root_node = build_complete_binary_tree(TREE_DEPTH)
+    all_nodes = get_all_nodes(root_node)
+
+    selected_pairs_k, ids_k = find_optimal_k_pairs(root_node, NUM_PAIRS_TO_SELECT)
+    ratio_k = len(ids_k) / len(all_nodes) if all_nodes else 0
+
+    coupling_map, nodes, pair_nodes = create_coupling_map_from_selection(root_node, selected_pairs_k)
+    coupling_map.add_node(0, [1])
+    layout = [0]+nodes
+    flags = pair_nodes
+    print(f"Coverage Ratio: {ratio_k:.2%}")
+
 
 backend = Aer.get_backend("aer_simulator")
 settings = [(PEEK, REVERSE_1), (PEEK, REVERSE_2), (REVERSE_2, REVERSE_1), (REVERSE_2, REVERSE_2)]
