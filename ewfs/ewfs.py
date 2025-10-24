@@ -326,12 +326,23 @@ def double_expect(settings: tuple[str, str], results: dict) -> float:
     # <AB> = P(00) - P(01) - P(10) + P(11)
     return probs.get("00", 0.0) - probs.get("01", 0.0) - probs.get("10", 0.0) + probs.get("11", 0.0)
 
-def semi_brukner_value(probs):
+def semi_brukner_value(
+    probs: dict[tuple[str, str], dict[str, float]]
+) -> float:
+    """
+    Calculate the semi-Brukner value from a set of measurement probabilities.
+    Args:
+        probs (dict[tuple[str, str], dict[str, float]]): 
+            A dictionary where each key is a tuple of settings (e.g., ('peek', 'reverse_1')),
+            and each value is a dictionary mapping bitstrings (e.g., '00', '01') to their probabilities (float).
+    Returns:
+        float: The calculated semi-Brukner violation value.
+    """
     
-    A1B2 = double_expect(('peek', 'reverse_1'), probs)
-    A1B3 = double_expect(('peek', 'reverse_2'), probs)
-    A3B2 = double_expect(('reverse_2', 'reverse_1'), probs)
-    A3B3 = double_expect(('reverse_2', 'reverse_2'), probs)
+    A1B2 = double_expect(("peek", "reverse_1"), probs)
+    A1B3 = double_expect(("peek", "reverse_2"), probs)
+    A3B2 = double_expect(("reverse_2", "reverse_1"), probs)
+    A3B3 = double_expect(("reverse_2", "reverse_2"), probs)
 
     semi_brukner_violation = -A1B2 + A1B3 - A3B2 - A3B3 - 2
 
