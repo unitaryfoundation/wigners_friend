@@ -3,7 +3,11 @@ import pytest
 from qiskit_aer import Aer
 from qiskit_ibm_runtime.fake_provider import FakeFez
 
-from ewfs.ewfs import EWFS
+from ewfs.ewfs import (
+    EWFS,
+    decode_results,
+    post_select_results,
+)
 
 
 # --- Shared fixtures ---------------------------------------------------------
@@ -171,9 +175,10 @@ def test_post_selected_distributions(layout_and_flags, backend_and_cmap, alice_s
     ewfs = _make_ewfs(alice_setting, bob_setting, backend, cmap, layout, flags, shots=10_000)
 
     # Run and post-select
-    ps = ewfs.post_select_results
+    ps = post_select_results(ewfs.results, len(flags))
     assert (alice_setting, bob_setting) in ps, "Missing setting in post-selected results"
-    actual_probs = ps[(alice_setting, bob_setting)]
+    actual_counts = ps[(alice_setting, bob_setting)]
+    actual_probs = {key: value/sum(list(actual_counts.values())) for key, value in actual_counts.items()}
 
     # Compare with a modest tolerance to allow shot noise & transpiler variance
     assert_prob_dict_close(actual_probs, expected_probs, tol=0.03)
@@ -188,7 +193,7 @@ def test_decoded_distribution_peek_reverse1(layout_and_flags, backend_and_cmap):
 
     ewfs = _make_ewfs("peek", "reverse_1", backend, cmap, layout, flags, shots=10_000)
 
-    decoded = ewfs.decode_results(ewfs.post_select_results)
+    decoded = decode_results(post_select_results(ewfs.results, len(flags)), len(layout) - len(flags) - 2)
 
     # From your final "Decoding results..." block
     expected_decoded = {
@@ -199,6 +204,7 @@ def test_decoded_distribution_peek_reverse1(layout_and_flags, backend_and_cmap):
     }
 
     assert ("peek", "reverse_1") in decoded
-    actual = decoded[("peek", "reverse_1")]
+    actual_counts = decoded[("peek", "reverse_1")]
+    actual_probs = {key: value/sum(list(actual_counts.values())) for key, value in actual_counts.items()}
 
-    assert_prob_dict_close(actual, expected_decoded, tol=0.03)
+    assert_prob_dict_close(actual_probs, expected_decoded, tol=0.03)

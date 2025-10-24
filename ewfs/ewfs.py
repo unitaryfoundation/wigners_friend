@@ -112,39 +112,12 @@ class EWFS:
 
         results = {}
         counts = res.data.c.get_counts()
-        probabilities = {key: value / self.shots for key, value in counts.items()}
 
-        results[(self.alice_setting, self.bob_setting)] = probabilities
+        results[(self.alice_setting, self.bob_setting)] = counts
         return results
-
-    @property
-    def post_select_results(self) -> dict:
-        """Check the measurement outcomes of flag qubits and post-select results."""
-        flag_size = len(self.flag_qubits)
-
-        post_selected_results = {}
-
-        for setting in self.results:
-            post_selected_results_setting = {}
-
-            for bitstring, count in self.results[setting].items():
-                processed_bitstring = bitstring.replace(" ", "")
-
-                flags_bitstring = processed_bitstring[:flag_size]
-                friends_bitstring = processed_bitstring[flag_size:]
-
-                if flags_bitstring == "0" * flag_size:
-                    post_selected_results_setting[friends_bitstring] = count
-
-            post_selected_results[setting] = post_selected_results_setting
-        return post_selected_results
 
     def _get_directed_tree_edges(self) -> list:
         """Determines the set of directed edges for a tree by performing a BFS.
-
-        This function simulates "pouring water" into a start_node and tracking
-        its flow to neighboring nodes within a specified tree, creating a
-        directed graph.
 
         Returns:
             A set of tuples, where each tuple (u, v) represents a directed edge
@@ -177,11 +150,9 @@ class EWFS:
         return directed_edges
 
     def _ghz(self, qc: QuantumCircuit, invert: bool = False) -> None:
-        print("ghz_ops: ", self.ghz_ops)
         if not invert:
             # Forward application: generate and store GHZ ops
             self.ghz_ops = self._get_directed_tree_edges()
-            print("ghz_ops: ", self.ghz_ops)
             for op in self.ghz_ops:
                 qc.cx(self.layout_dict[op[0]], self.layout_dict[op[1]])
         else:
@@ -196,9 +167,9 @@ class EWFS:
             for flag in self.flag_qubits:
                 neighbors = self.coupling_map.neighbors(flag)
                 for qubit in neighbors:
-                    qc.cx(self.layout_dict[qubit], self.layout_dict[flag])
-                    self.flag_ops.append((self.layout_dict[qubit], self.layout_dict[flag]))
-            print("flag_ops: ", self.flag_ops)
+                    if qubit in self.layout:
+                        qc.cx(self.layout_dict[qubit], self.layout_dict[flag])
+                        self.flag_ops.append((self.layout_dict[qubit], self.layout_dict[flag]))
         else:
             # Inverse application: replay stored ops in reverse order.
             for op in reversed(self.flag_ops):
@@ -298,33 +269,81 @@ class EWFS:
         else:
             qc.h(observer)
             qc.rz(angle, observer)
+    
+def post_select_results(results, flag_size) -> dict:
+    """Check the measurement outcomes of flag qubits and post-select results."""
 
-    def decode_results(self, results: dict) -> dict:
-        """Take majority vote of measurement bit-strings."""
-        decoded_results = {}
+    post_selected_results = {}
 
-        # For each setting, there is a dictionary of measurement results.
-        for setting in results:
-            if setting[0] == "peek":
-                # Debbie's size is 1 because no PEEK setting
-                bob_size = 1
+    for setting in results:
+        post_selected_results_setting = {}
 
-                setting_results: dict = {}
-                # Decode the keys for each measurement result of the setting.
-                for k, v in results[setting].items():
-                    alice_result, bob_result = k[-self.charlie_size :], k[:bob_size]
+        for bitstring, count in results[setting].items():
+            processed_bitstring = bitstring.replace(" ", "")
 
-                    alice_zero_count, bob_zero_count = alice_result.count("0"), bob_result.count("0")
+            flags_bitstring = processed_bitstring[:flag_size]
+            friends_bitstring = processed_bitstring[flag_size:]
 
-                    alice_decoding = "0" if alice_zero_count >= self.charlie_size // 2 + 1 else "1"
-                    bob_decoding = "0" if bob_zero_count >= 1 else "1"
+            if flags_bitstring == "0" * flag_size:
+                post_selected_results_setting[friends_bitstring] = count
 
-                    if alice_decoding + bob_decoding in setting_results.keys():
-                        setting_results[alice_decoding + bob_decoding] += v
-                    else:
-                        setting_results[alice_decoding + bob_decoding] = v
-                decoded_results[setting] = setting_results
-            else:
-                decoded_results[setting] = results[setting]
+        post_selected_results[setting] = post_selected_results_setting
+    return post_selected_results
 
-        return decoded_results
+def decode_results(post_selected_results, charlie_size) -> dict:
+    """Take majority vote of measurement bit-strings."""
+    decoded_results = {}
+
+    # For each setting, there is a dictionary of measurement results.
+    for setting in post_selected_results:
+        if setting[0] == "peek":
+            # Debbie's size is 1 because no PEEK setting
+            bob_size = 1
+
+            setting_results: dict = {}
+            # Decode the keys for each measurement result of the setting.
+            for k, v in post_selected_results[setting].items():
+                alice_result, bob_result = k[-charlie_size :], k[:bob_size]
+
+                alice_zero_count, bob_zero_count = alice_result.count("0"), bob_result.count("0")
+
+                alice_decoding = "0" if alice_zero_count >= charlie_size // 2 + 1 else "1"
+                bob_decoding = "0" if bob_zero_count >= 1 else "1"
+
+                if alice_decoding + bob_decoding in setting_results.keys():
+                    setting_results[alice_decoding + bob_decoding] += v
+                else:
+                    setting_results[alice_decoding + bob_decoding] = v
+            decoded_results[setting] = setting_results
+        else:
+            decoded_results[setting] = post_selected_results[setting]
+
+    return decoded_results
+
+def double_expect(settings: tuple[str, str], results: dict) -> float:
+    """Expectation value of product of two operators."""
+    probs = results[settings]
+    # <AB> = P(00) - P(01) - P(10) + P(11)
+    return probs.get("00", 0.0) - probs.get("01", 0.0) - probs.get("10", 0.0) + probs.get("11", 0.0)
+
+def semi_brukner_value(
+    probs: dict[tuple[str, str], dict[str, float]]
+) -> float:
+    """
+    Calculate the semi-Brukner value from a set of measurement probabilities.
+    Args:
+        probs (dict[tuple[str, str], dict[str, float]]): 
+            A dictionary where each key is a tuple of settings (e.g., ('peek', 'reverse_1')),
+            and each value is a dictionary mapping bitstrings (e.g., '00', '01') to their probabilities (float).
+    Returns:
+        float: The calculated semi-Brukner violation value.
+    """
+    
+    A1B2 = double_expect(("peek", "reverse_1"), probs)
+    A1B3 = double_expect(("peek", "reverse_2"), probs)
+    A3B2 = double_expect(("reverse_2", "reverse_1"), probs)
+    A3B3 = double_expect(("reverse_2", "reverse_2"), probs)
+
+    semi_brukner_violation = -A1B2 + A1B3 - A3B2 - A3B3 - 2
+
+    return semi_brukner_violation
