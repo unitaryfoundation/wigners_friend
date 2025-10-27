@@ -3218,14 +3218,14 @@ scipy = ">=1.0"
 
 [[package]]
 name = "qiskit-ibm-runtime"
-version = "0.42.0"
+version = "0.43.1"
 description = "IBM Quantum client for Qiskit Runtime."
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "qiskit_ibm_runtime-0.42.0-py3-none-any.whl", hash = "sha256:4abf5a88c8506b0bcb23fee5ca99f68a148efa6ccdb252e7e14a53745910adb9"},
-    {file = "qiskit_ibm_runtime-0.42.0.tar.gz", hash = "sha256:125c08e3a2e762ab23b15f1e2c21fdb15a2bfe63e2ac35b019001f139bb2d4f5"},
+    {file = "qiskit_ibm_runtime-0.43.1-py3-none-any.whl", hash = "sha256:7448bb808589686079c50b097c804bbac738ad6a7ba30f8939164dcc99b4f625"},
+    {file = "qiskit_ibm_runtime-0.43.1.tar.gz", hash = "sha256:73852ffd3e72562a13f19507f1c548473a4a0a1d7a18a1f365d79d754838d4fe"},
 ]
 
 [package.dependencies]
@@ -4066,4 +4066,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "~3.12"
-content-hash = "a55b9d8d85f72f402717b5341fb6d61f7121ddedb6bdda9e60efc550f9bdc4b8"
+content-hash = "81ad46aebfeb556c0bd541f68c1c6180e35772062a94525c984cb932840285b1"
