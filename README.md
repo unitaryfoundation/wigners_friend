@@ -3,18 +3,18 @@ Supplemental code for [arXiv:2409.15302](https://arxiv.org/abs/2409.15302) based
 [arXiv:1907.05607](https://arxiv.org/abs/1907.05607)
 
 ## Installation
-You will require **Python 3.12** and [`poetry`](https://python-poetry.org/). **Note:** the
+You will require **Python 3.12** and [`uv`](https://docs.astral.sh/uv/). **Note:** the
 newest Python version 3.13 is not yet supported due to the `qiskit-aer` dependency.
 
 ```sh
-poetry install
+uv sync --group dev
 ```
 
 ## Usage
-First, launch the virtual environment shell via poetry:
+Activate the project environment (or prefix commands with `uv run`) after syncing:
 
 ```sh
-poetry shell
+source .venv/bin/activate
 ```
 
 An EWFS circuit is comprised of two super-observers (Alice and Bob) who have respective friends (Charlie and Debbie). An
@@ -86,18 +86,18 @@ We don't have a style guide per se, but we recommend that both linter and format
 are run before each commit. In order to guarantee that, please install the pre-commit hook with
 
 ```sh
-poetry run pre-commit install
+uv run pre-commit install
 ``` 
 immediately upon cloning the repository.
 
 ### Tests
 The suite of unit tests can be run with
 ```sh
-poetry run pytest
+uv run pytest
 ```
 
 ### Type checking
 The project uses [mypy](https://mypy.readthedocs.io/en/stable/) for static type checking. To run mypy, use the following command:
 ```sh
-poetry run mypy
+uv run mypy
 ```
