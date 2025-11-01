@@ -3,7 +3,6 @@
 import os
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 
 import qnexus as qnx
 from dotenv import load_dotenv
