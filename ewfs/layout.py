@@ -371,7 +371,7 @@ def create_coupling_map_from_selection(root, selected_pairs):
             # Add the new node and its connections to the leaves.
             # Ensure the new node is in the adj list
             if new_node_id not in adj:
-                 adj[new_node_id] = []
+                adj[new_node_id] = []
                  
             adj[new_node_id].extend([leaf1_id, leaf2_id])
 
