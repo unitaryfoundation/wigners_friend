@@ -49,7 +49,7 @@ REVERSE_1 = 'reverse_1'
 REVERSE_2 = 'reverse_2'
 
 # Quantinuum devices are fully connected, so we create a simple fully connected topology
-TOTAL_NODE_COUNT = 8 
+TOTAL_NODE_COUNT = 8
 NUM_PAIRS_TO_SELECT = 2
 
 root_node = build_tree_by_node_count(TOTAL_NODE_COUNT)
