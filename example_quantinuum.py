@@ -16,7 +16,8 @@ from ewfs.ewfs import (
     semi_brukner_value,
 )
 from ewfs.layout import (
-    build_complete_binary_tree,
+    build_tree_by_node_count,
+    get_leaf_nodes,
     get_all_nodes,
     find_optimal_k_pairs,
     create_coupling_map_from_selection,
@@ -48,18 +49,21 @@ REVERSE_1 = 'reverse_1'
 REVERSE_2 = 'reverse_2'
 
 # Quantinuum devices are fully connected, so we create a simple fully connected topology
-TREE_DEPTH = 2
-NUM_PAIRS_TO_SELECT = 1
+TOTAL_NODE_COUNT = 8
+NUM_PAIRS_TO_SELECT = 2
 
-root_node = build_complete_binary_tree(TREE_DEPTH)
+root_node = build_tree_by_node_count(TOTAL_NODE_COUNT)
 all_nodes = get_all_nodes(root_node)
+
+leaves = get_leaf_nodes(root_node)
 
 selected_pairs_k, ids_k = find_optimal_k_pairs(root_node, NUM_PAIRS_TO_SELECT)
 ratio_k = len(ids_k) / len(all_nodes) if all_nodes else 0
 
 coupling_map, nodes, pair_nodes = create_coupling_map_from_selection(root_node, selected_pairs_k)
 coupling_map.add_node(0, [1])
-layout = [0] + nodes
+layout = [0]+nodes
+
 flags = pair_nodes
 print(f"Coverage Ratio: {ratio_k:.2%}")
 

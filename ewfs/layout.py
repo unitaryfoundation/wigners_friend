@@ -65,8 +65,16 @@ def build_complete_binary_tree(depth):
     """
     if depth < 0:
         return None
-
-    nodes = [Node(i) for i in range(1, 2**(depth + 1))]
+    
+    # Total nodes in a complete tree of depth 'd' is 2^(d+1) - 1
+    # The old code's 2**(depth+1) was creating a list one size too large
+    # but the logic for connections was correct for 1-based indexing
+    # We will stick to the 1-based indexing for node IDs.
+    num_nodes = 2**(depth + 1) - 1
+    if num_nodes <= 0:
+        return None
+        
+    nodes = [Node(i) for i in range(1, num_nodes + 1)]
     for i in range(len(nodes)):
         left_child_idx = 2 * i + 1
         right_child_idx = 2 * i + 2
@@ -74,6 +82,35 @@ def build_complete_binary_tree(depth):
             nodes[i].left = nodes[left_child_idx]
         if right_child_idx < len(nodes):
             nodes[i].right = nodes[right_child_idx]
+    return nodes[0]
+
+def build_tree_by_node_count(num_nodes):
+    """
+    Builds a binary tree with a specific number of nodes,
+    filling them in level-order (like a complete tree).
+    Nodes are numbered starting from 1.
+    Returns the root node of the tree.
+    """
+    if num_nodes <= 0:
+        return None
+
+    # Create all nodes beforehand, using 1-based indexing for IDs
+    nodes = [Node(i) for i in range(1, num_nodes + 1)]
+
+    # Link nodes based on the array-based binary tree indexing
+    for i in range(num_nodes):
+        left_child_idx = 2 * i + 1
+        right_child_idx = 2 * i + 2
+        
+        # Check if the left child index is within our list of nodes
+        if left_child_idx < num_nodes:
+            nodes[i].left = nodes[left_child_idx]
+            
+        # Check if the right child index is within our list of nodes
+        if right_child_idx < num_nodes:
+            nodes[i].right = nodes[right_child_idx]
+            
+    # The root is the first node in the list
     return nodes[0]
 
 def get_all_nodes(root):
@@ -324,6 +361,7 @@ def create_coupling_map_from_selection(root, selected_pairs):
     pair_nodes = []
     # 2. Add new "pair" nodes and their edges.
     if selected_pairs:
+        # Start new IDs from the max existing ID + 1
         new_node_id_start = max(adj.keys()) + 1
         for i, pair in enumerate(selected_pairs):
             new_node_id = new_node_id_start + i
@@ -331,9 +369,14 @@ def create_coupling_map_from_selection(root, selected_pairs):
             pair_nodes.append(new_node_id)
 
             # Add the new node and its connections to the leaves.
-            adj[new_node_id] = [leaf1_id, leaf2_id]
+            # Ensure the new node is in the adj list
+            if new_node_id not in adj:
+                adj[new_node_id] = []
+                 
+            adj[new_node_id].extend([leaf1_id, leaf2_id])
 
             # Add connections from the leaves back to the new node.
+            # Leaf nodes are guaranteed to be in adj list from tree_to_adj_list
             adj[leaf1_id].append(new_node_id)
             adj[leaf2_id].append(new_node_id)
 
@@ -356,18 +399,32 @@ def visualize_pair_selection_solution(root, selected_pairs, final_covered_ids, t
             G.add_node(node.id)
             pos[node.id] = (x, -y)
             labels[node.id] = str(node.id)
+            
+            # Calculate width for the next level
+            # We use a fixed width reduction for simplicity
+            child_level_width = level_width / 2
+            
             if node.left:
                 G.add_edge(node.id, node.left.id)
-                add_edges_and_positions(node.left, x - level_width / 2, y + level_height, level_height, level_width / 2)
+                add_edges_and_positions(node.left, x - child_level_width, y + level_height, level_height, child_level_width)
             if node.right:
                 G.add_edge(node.id, node.right.id)
-                add_edges_and_positions(node.right, x + level_width / 2, y + level_height, level_height, level_width / 2)
+                add_edges_and_positions(node.right, x + child_level_width, y + level_height, level_height, child_level_width)
 
-    add_edges_and_positions(root)
+    # Find the max depth to estimate a good starting width
+    def get_max_depth(node):
+        if not node:
+            return 0
+        return 1 + max(get_max_depth(node.left), get_max_depth(node.right))
+    
+    max_depth = get_max_depth(root)
+    start_width = 2**max_depth # Initial width spread
+    
+    add_edges_and_positions(root, level_width=start_width)
 
     # --- Determine node and edge colors ---
     selected_leaf_ids = {item for t in selected_pairs for item in t}
-    lca_ids = {find_lca(root, p[0], p[1]).id for p in selected_pairs}
+    lca_ids = {find_lca(root, p[0], p[1]).id for p in selected_pairs if find_lca(root, p[0], p[1])}
 
     node_colors = []
     for node_id in G.nodes():
@@ -384,16 +441,18 @@ def visualize_pair_selection_solution(root, selected_pairs, final_covered_ids, t
     coverage_edges = set()
     for pair in selected_pairs:
         lca = find_lca(root, pair[0], pair[1])
-        path1, _ = calculate_coverage(lca, pair[0], pair[0])
-        path2, _ = calculate_coverage(lca, pair[1], pair[1])
-        
-        path1_ids = {n.id for n in path1}
-        path2_ids = {n.id for n in path2}
-
-        for u, v in G.edges():
-            if (u in path1_ids and v in path1_ids) or \
-               (u in path2_ids and v in path2_ids):
-                coverage_edges.add(tuple(sorted((u, v))))
+        if not lca:
+            continue
+            
+        # Get path from LCA to leaf 1
+        path1 = find_path(lca, pair[0])
+        for i in range(len(path1) - 1):
+            coverage_edges.add(tuple(sorted((path1[i].id, path1[i+1].id))))
+             
+        # Get path from LCA to leaf 2
+        path2 = find_path(lca, pair[1])
+        for i in range(len(path2) - 1):
+            coverage_edges.add(tuple(sorted((path2[i].id, path2[i+1].id))))
 
     edge_colors = ['blue' if tuple(sorted(edge)) in coverage_edges else 'gray' for edge in G.edges()]
 
@@ -405,15 +464,19 @@ def visualize_pair_selection_solution(root, selected_pairs, final_covered_ids, t
 
 if __name__ == '__main__':
     # --- Configuration ---
-    TREE_DEPTH = 2
-    NUM_PAIRS_TO_SELECT = 1
+    # Build a tree that is NOT complete
+    TOTAL_NODE_COUNT = 50 
+    NUM_PAIRS_TO_SELECT = 6
 
     # --- Script Execution ---
-    root_node = build_complete_binary_tree(TREE_DEPTH)
+    root_node = build_tree_by_node_count(TOTAL_NODE_COUNT)
     all_nodes = get_all_nodes(root_node)
     
-    print(f"Tree Depth: {TREE_DEPTH}")
-    print(f"Total nodes in tree: {len(all_nodes)}")
+    print(f"Total nodes requested: {TOTAL_NODE_COUNT}")
+    print(f"Total nodes in created tree: {len(all_nodes)}")
+
+    leaves = get_leaf_nodes(root_node)
+    print(f"Leaf nodes: {[leaf.id for leaf in leaves]}")
 
     # --- Method 2: Find optimal coverage for a fixed k ---
     print("\n" + "="*50)
@@ -435,8 +498,15 @@ if __name__ == '__main__':
         # Example: Show neighbors of the first new pair node
         first_new_node_k = pair_nodes_k[0]
         print(f"Example: Neighbors of new node {first_new_node_k}: {coupling_map_k.neighbors(first_new_node_k)}")
+    elif selected_pairs_k:
+        print("No new pair nodes were added (selected_pairs was empty or invalid).")
+    else:
+        print("No pairs selected.")
 
-    if selected_pairs_k:
+    if selected_pairs_k and plt:
         visualize_pair_selection_solution(root_node, selected_pairs_k, ids_k,
-                                          title=f"Optimal Coverage for k={NUM_PAIRS_TO_SELECT} Pairs")
-
+                                          title=f"Optimal Coverage for k={NUM_PAIRS_TO_SELECT} Pairs on {TOTAL_NODE_COUNT}-Node Tree")
+    elif not plt:
+        print("\nMatplotlib not available. Skipping visualization.")
+    else:
+        print("\nNo pairs selected. Skipping visualization.")
