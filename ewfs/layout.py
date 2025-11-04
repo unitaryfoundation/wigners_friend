@@ -448,7 +448,7 @@ def visualize_pair_selection_solution(root, selected_pairs, final_covered_ids, t
         path1 = find_path(lca, pair[0])
         path1_ids = {n.id for n in path1}
         for i in range(len(path1) - 1):
-             coverage_edges.add(tuple(sorted((path1[i].id, path1[i+1].id))))
+            coverage_edges.add(tuple(sorted((path1[i].id, path1[i+1].id))))
              
         # Get path from LCA to leaf 2
         path2 = find_path(lca, pair[1])
