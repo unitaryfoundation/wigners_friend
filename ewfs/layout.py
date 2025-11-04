@@ -454,7 +454,7 @@ def visualize_pair_selection_solution(root, selected_pairs, final_covered_ids, t
         path2 = find_path(lca, pair[1])
         path2_ids = {n.id for n in path2}
         for i in range(len(path2) - 1):
-             coverage_edges.add(tuple(sorted((path2[i].id, path2[i+1].id))))
+            coverage_edges.add(tuple(sorted((path2[i].id, path2[i+1].id))))
 
     edge_colors = ['blue' if tuple(sorted(edge)) in coverage_edges else 'gray' for edge in G.edges()]
 
