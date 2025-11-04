@@ -469,16 +469,12 @@ if __name__ == '__main__':
     NUM_PAIRS_TO_SELECT = 6
 
     # --- Script Execution ---
-    # Use the new function to build the tree
     root_node = build_tree_by_node_count(TOTAL_NODE_COUNT)
     all_nodes = get_all_nodes(root_node)
     
     print(f"Total nodes requested: {TOTAL_NODE_COUNT}")
     print(f"Total nodes in created tree: {len(all_nodes)}")
-    
-    # Example: A 5-node tree will have leaves 3, 4, 5
-    # A 6-node tree will have leaves 3, 4, 5
-    # A 7-node tree will have leaves 4, 5, 6, 7
+
     leaves = get_leaf_nodes(root_node)
     print(f"Leaf nodes: {[leaf.id for leaf in leaves]}")
 
