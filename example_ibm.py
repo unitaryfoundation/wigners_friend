@@ -27,7 +27,7 @@ if hardware_connectivity == 'fez':
     flags = [58]
     coupling_map = FakeFez().coupling_map
 elif hardware_connectivity == 'fully_connected':
-    TOTAL_NODE_COUNT = 7 
+    TOTAL_NODE_COUNT = 7
     NUM_PAIRS_TO_SELECT = 2
 
     root_node = build_tree_by_node_count(TOTAL_NODE_COUNT)
