@@ -10,10 +10,12 @@ from ewfs.layout import (
 
 from qiskit_aer import AerSimulator
 
+import matplotlib.pyplot as plt
+
 from qiskit_aer.noise import (
     NoiseModel,
     depolarizing_error,
-    pauli_error,
+    # pauli_error,
 )
 
 import numpy as np
@@ -74,9 +76,6 @@ for total_node_count in total_node_counts:
         f = fidelityEstimator.estimate_fidelity(all_counts)
 
         results[total_node_counts.index(total_node_count), num_pairs_to_select.index(num_pairs)] = f
-
-
-import matplotlib.pyplot as plt
 
 for i, total_node_count in enumerate(total_node_counts):
     plt.figure()
