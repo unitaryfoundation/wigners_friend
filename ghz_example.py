@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 from qiskit_aer.noise import (
     NoiseModel,
     depolarizing_error,
-    # pauli_error,
 )
 
 import numpy as np
