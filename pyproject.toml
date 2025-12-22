@@ -9,7 +9,7 @@ dependencies = [
     "ipykernel>=7.0.1,<8.0.0",
     "jupyter>=1.1.1,<2.0.0",
     "networkx>=3.3,<4.0",
-    "notebook==7.4.7",
+    "notebook==7.5.1",
     "pylatexenc>=2.10,<3.0.0",
     "python-dotenv>=1.0.0,<2.0.0",
     "pytket-qiskit>=0.71.0,<0.73.0",
