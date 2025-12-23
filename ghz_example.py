@@ -15,31 +15,38 @@ import matplotlib.pyplot as plt
 from qiskit_aer.noise import (
     NoiseModel,
     depolarizing_error,
+    pauli_error,
 )
 
 import numpy as np
 
 single_qubit_error_rate  = 0.0005 # 99.95%
-two_qubit_error_rate = 0.01 # 99.5%
+two_qubit_error_rate = 0.01 # 99%
 bit_flip_error_rate = 0.01
 
 noise_model = NoiseModel()
 
-noise_model.add_all_qubit_quantum_error(depolarizing_error(single_qubit_error_rate, 1), ['u2', 'u3', 'x'])
-noise_model.add_all_qubit_quantum_error(depolarizing_error(two_qubit_error_rate, 2), ['cx'])
+def backend_with_noise(noise_model: NoiseModel, noise='depolarizing'):
+    if noise == 'depolarizing':
+        noise_model.add_all_qubit_quantum_error(depolarizing_error(single_qubit_error_rate, 1), ['u2', 'u3', 'x'])
+        noise_model.add_all_qubit_quantum_error(depolarizing_error(two_qubit_error_rate, 2), ['cx'])
+    elif noise == 'bit_flip':
+        # Add bit flip errors (X gates) to all qubits after each gate operation
+        x_error = pauli_error([('X', bit_flip_error_rate), ('I', 1 - bit_flip_error_rate)])
+        # # Apply X error to all single-qubit gates
+        noise_model.add_all_qubit_quantum_error(x_error, ['u2', 'u3', 'x'])
+        # # Apply X error to all two-qubit gates
+        x_error_2q = pauli_error([('XX', bit_flip_error_rate), ('II', 1 - bit_flip_error_rate)])
+        noise_model.add_all_qubit_quantum_error(x_error_2q, ['cx'])
 
-# Add bit flip errors (X gates) to all qubits after each gate operation
-# x_error = pauli_error([('X', bit_flip_error_rate), ('I', 1 - bit_flip_error_rate)])
-# # Apply X error to all single-qubit gates
-# noise_model.add_all_qubit_quantum_error(x_error, ['u2', 'u3', 'x'])
-# # Apply X error to all two-qubit gates
-# x_error_2q = pauli_error([('XX', bit_flip_error_rate), ('II', 1 - bit_flip_error_rate)])
-# noise_model.add_all_qubit_quantum_error(x_error_2q, ['cx'])
+    backend = AerSimulator(noise_model=noise_model)
+    return backend
 
+backend = backend_with_noise(noise_model, noise='depolarizing')
 
 # Run simulations across different total node counts and selected pair counts
-total_node_counts = [7, 8, 9, 10, 11]
-num_pairs_to_select = [0, 1, 2]
+total_node_counts = [4]
+num_pairs_to_select = [0, 1]
 
 results = np.zeros((len(total_node_counts), len(num_pairs_to_select)))
 
@@ -61,17 +68,14 @@ for total_node_count in total_node_counts:
         flags = pair_nodes
         print(f"Coverage Ratio: {ratio_k:.2%}")
 
-        backend = AerSimulator(noise_model=noise_model)
-
         ghz = GHZ(
             coupling_map=coupling_map,
             layout=layout,
             flag_qubits=flags)
 
-
         fidelityEstimator = FidelityEstimator(ghz=ghz)
 
-        all_counts = fidelityEstimator.run_measurements(backend=backend, shots=100_000)
+        all_counts = fidelityEstimator.run_measurements(backend=backend, shots=10_000)
         f = fidelityEstimator.estimate_fidelity(all_counts)
 
         results[total_node_counts.index(total_node_count), num_pairs_to_select.index(num_pairs)] = f

@@ -1,19 +1,14 @@
 
 from collections import deque
-from dataclasses import dataclass
 
 from qiskit import QuantumCircuit, transpile
 from qiskit.providers import Backend
 from qiskit.transpiler import CouplingMap
 from qiskit_ibm_runtime import SamplerV2
 
-
-@dataclass
-class Friend:
-    size: int
-    qubits: list[int]
-    label: str
-
+import numpy as np
+from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
 
 class GHZ:
     def __init__(
@@ -21,13 +16,19 @@ class GHZ:
         coupling_map: CouplingMap,
         layout: list,
         flag_qubits: list,
+        xx_check: bool = False, # Toggle for XX check
+        root_flag_qubit: int = None # Specific ancilla for the XX check
     ) -> None:
         """Initialize the GHZ class."""
+        self.xx_check = xx_check
+        self.root_flag_qubit = root_flag_qubit
 
         self.coupling_map = coupling_map
         self.layout = layout
         self.flag_qubits = flag_qubits
         self.data_qubits = [item for item in layout if item not in flag_qubits]
+        if root_flag_qubit is not None and root_flag_qubit in self.data_qubits:
+            self.data_qubits.remove(root_flag_qubit)
         self.layout_dict = dict(zip(layout, range(len(layout))))
 
         self.ghz_ops = self._get_directed_tree_edges()
@@ -38,7 +39,7 @@ class GHZ:
     @property
     def circuit(self) -> QuantumCircuit:
         """Generate the circuit for the GHZ state."""
-        # Initialize system qubits and entangle with Charlie
+        # Initialize system qubits and flag qubits and apply GHZ + flag operations
         qc = self._initialize_circuit()
 
         data_creg, flag_creg = self._get_classical_registers()
@@ -98,38 +99,65 @@ class GHZ:
                 qc.cx(self.layout_dict[op[0]], self.layout_dict[op[1]])
 
     def _flag_operations(self, qc: QuantumCircuit, invert: bool = False) -> None:
+        """
+        Apply standard ZZ checks at the end of the circuit.
+        """
         if not invert:
-            # Forward application: generate and store flag_ops
-            self.flag_ops = []
+            # We reset flag_ops only if we aren't performing an Early XX check
+            # or we manage the list carefully to avoid clearing the XX op.
+            
+            # --- Standard ZZ Checks (Detects Bit-flips) ---
             for flag in self.flag_qubits:
+                # Skip the root flag if it was already used for the Early XX check
+                if self.xx_check and flag == self.root_flag_qubit: 
+                    continue
+                    
                 neighbors = self.coupling_map.neighbors(flag)
                 for qubit in neighbors:
-                    if qubit in self.layout:
+                    if qubit in self.layout and qubit != self.root_flag_qubit:
+                        # Apply ZZ check: CNOT from data to flag
                         qc.cx(self.layout_dict[qubit], self.layout_dict[flag])
                         self.flag_ops.append((self.layout_dict[qubit], self.layout_dict[flag]))
         else:
-            # Inverse application: replay stored ops in reverse order.
+            # Inverse application for uncomputing (if needed for resets)
             for op in reversed(self.flag_ops):
                 qc.cx(op[0], op[1])
 
     def _initialize_circuit(self) -> QuantumCircuit:
-        """Initialize the classical measurement registers based on the strategy."""
-
+        """Initialize the circuit with an Early XX Flag Check."""
         meas_size = len(self.data_qubits) + len(self.flag_qubits)
-
         qc = QuantumCircuit(len(self.layout), meas_size)
 
-        # First create entanglement between the system qubits.
-        qc.h(self.layout_dict[self.data_qubits[0]])
+        # 1. Start the root
+        root = self.data_qubits[0]
+        qc.h(self.layout_dict[root])
 
-        # then create the ghz state on the data qubits ({layout}\{flags}).
-        self._ghz(qc)
+        # 2. Check if we are doing an Early XX Flag
+        if self.xx_check and self.root_flag_qubit is not None and len(self.ghz_ops) > 0:
+            # Create the initial Bell pair (Seed of the GHZ state)
+            ctrl, target = self.ghz_ops[0]
+            qc.cx(self.layout_dict[ctrl], self.layout_dict[target])
+            
+            # XX check on the Bell pair while it is still a subsystem stabilizer
+            f_idx = self.layout_dict[self.root_flag_qubit]
+            d0_idx = self.layout_dict[ctrl]
+            d1_idx = self.layout_dict[target]
+            
+            qc.h(f_idx)
+            qc.cx(f_idx, d0_idx)
+            qc.cx(f_idx, d1_idx)
+            qc.h(f_idx) # Flag is now unentangled and contains the phase-error status
+            
+            # 3. Complete the rest of the BFS GHZ tree
+            for op in self.ghz_ops[1:]:
+                qc.cx(self.layout_dict[op[0]], self.layout_dict[op[1]])
+        else:
+            # Standard GHZ prep if XX check is off
+            self._ghz(qc)
 
-        # Add barrier between state preparation and flag operations
         qc.barrier()
-
-        # now implement the check operations
-        self._flag_operations(qc)
+        # Apply standard ZZ flags (for bit-flips) at the end as usual
+        self._flag_operations(qc) 
 
         return qc
 
@@ -141,125 +169,135 @@ class GHZ:
 
         return data_creg, flag_creg
 
-    
-def post_select_results(results, flag_size) -> dict:
-    """Check the measurement outcomes of flag qubits and post-select results."""
 
+def post_select_results(results, num_flag_qubits) -> dict:
+    """
+    Check the measurement outcomes of all flag qubits and post-select results.
+    
+    Args:
+        results (dict): The raw counts dictionary from the sampler.
+        num_data_qubits (int): Number of qubits used for the GHZ state.
+        num_flag_qubits (int): Total number of flags (including the XX flag).
+    """
     post_selected_results = {}
 
     for bitstring, count in results.items():
+        # Remove any whitespace from the bitstring
         processed_bitstring = bitstring.replace(" ", "")
 
-        flags_bitstring = processed_bitstring[:flag_size]
-        data_bitstring = processed_bitstring[flag_size:]
+        # Qiskit bitstrings are usually [flags][data] in the string representation
+        # because higher index registers (flags) appear on the left.
+        flags_part = processed_bitstring[:num_flag_qubits]
+        data_part = processed_bitstring[num_flag_qubits:]
 
-        if flags_bitstring == "0" * flag_size:
-            post_selected_results[data_bitstring] = post_selected_results.get(data_bitstring, 0) + count
+        # Post-selection: Keep only if ALL flags measured '0'
+        if flags_part == "0" * num_flag_qubits:
+            post_selected_results[data_part] = post_selected_results.get(data_part, 0) + count
 
     return post_selected_results
 
-
 class FidelityEstimator:
-    def __init__(
-            self,
-            ghz: GHZ,
-            method: str = 'dfe'): # TODO: support parity oscillations method
+    def __init__(self, ghz: GHZ, method: str = 'dfe'):
         """
         Initializes the Fidelity Estimator.
-        
-        The GHZ state fidelity is F = (1/2^n) * sum( <S_i> ).
-        For GHZ, this simplifies to checking the Z-parity and the X-coherence.
+        Methods: 'dfe' (Fast) or 'parity_oscillation' (Rigorous).
+        'dfe' - Direct Fidelity Estimation using Z and X basis measurements 
+                (this implementation works only with incoherent noise).
+        'parity_oscillation' - Measures parity oscillations by varying phase
+                (works under any noise model).
         """
         self.ghz = ghz
         self.method = method
         self.n = len(self.ghz.data_qubits)
-        # Generators for GHZ: {Z_i Z_{i+1}} for i=1..n-1  and  {X_1 X_2 ... X_n}
-        # To get the full sum, we only measure in the Z basis and X basis separately.
 
-    @property
-    def generate_measurement_circuits(self) -> list[QuantumCircuit]:
+    def run_measurements(self, backend: Backend, shots: int, num_points=20):
         """
-        Creates the circuits needed to estimate fidelity.
-        1. Z-basis circuit: Measures all Z-type stabilizers (parity).
-        2. X-basis circuit: Measures the XX...X stabilizer (coherence).
+        Executes the required circuits based on the selected method.
         """
-        circuits = []
-
-        # --- 1. Z-Basis Measurement (Detects Bit-flips) ---
-        # This allows us to calculate <Z1Z2>, <Z2Z3>, etc., and all their products.
-        z_qc = self.ghz.circuit.copy()
-        z_qc.name = "meas_z"
-        # The base GHZ class already measures in Z basis at the end of the circuit
-        circuits.append(z_qc)
-
-        # --- 2. X-Basis Measurement (Detects Phase-flips) ---
-        # To measure in X, we apply Hadamard to all data qubits before measurement.
-        x_qc = self.ghz._initialize_circuit() # Get circuit before final Z measurements
+        num_f = len(self.ghz.flag_qubits)
         
-        # Apply H-gates to data qubits to rotate to X-basis
-        for qubit in self.ghz.data_qubits:
-            x_qc.h(self.ghz.layout_dict[qubit])
-        
-        # Define registers and measure
-        data_creg, flag_creg = self.ghz._get_classical_registers()
-        data_indices = [self.ghz.layout_dict[d] for d in self.ghz.data_qubits]
-        x_qc.measure(data_indices, data_creg)
-        
-        # Measure flags (in Z-basis) for the post-selection logic
-        flag_indices = [self.ghz.layout_dict[f] for f in self.ghz.flag_qubits]
-        x_qc.measure(flag_indices, flag_creg)
-        
-        x_qc.name = "meas_x"
-        circuits.append(x_qc)
-
-        return circuits
-    
-    def run_measurements(self, backend: Backend, shots: int) -> list[dict]:
-        """Runs the Z and X circuits on the provided backend."""
-        transpiled = transpile(self.generate_measurement_circuits, backend, optimization_level=3)
-        sampler = SamplerV2(backend)
-        
-        job_res = sampler.run(transpiled, shots=shots).result()
-        
-        # Return a list of count dictionaries, one for Z and one for X
-        # Apply post-selection to each result
-        all_counts = []
-        for i in range(len(transpiled)):
-            raw_counts = job_res[i].data.c.get_counts()
-            post_counts = post_select_results(raw_counts, len(self.ghz.flag_qubits))
-            all_counts.append(post_counts)
+        if self.method == 'dfe':
+            z_qc = self.ghz.circuit
+            x_qc = self.ghz._initialize_circuit()
+            for d in self.ghz.data_qubits: 
+                x_qc.h(self.ghz.layout_dict[d])
             
-        return all_counts
+            # Map measurements for X-basis
+            data_idxs = [self.ghz.layout_dict[d] for d in self.ghz.data_qubits]
+            flag_idxs = [self.ghz.layout_dict[f] for f in self.ghz.flag_qubits]
+            x_qc.measure(data_idxs, range(len(data_idxs)))
+            x_qc.measure(flag_idxs, range(len(data_idxs), len(self.ghz.layout)))
 
-    def estimate_fidelity(self, results: list[dict]) -> float:
+            res = SamplerV2(backend).run(transpile([z_qc, x_qc], backend), shots=shots).result()
+            return [post_select_results(res[i].data.c.get_counts(), num_f) for i in range(2)]
+
+        elif self.method == 'parity_oscillation':
+            phases = np.linspace(0, 2 * np.pi, num_points)
+            z_qc = self.ghz.circuit
+            osc_circs = [self._parity_oscillation_circuit(p) for p in phases]
+            
+            res = SamplerV2(backend).run(transpile([z_qc] + osc_circs, backend), shots=shots).result()
+            
+            z_counts = post_select_results(res[0].data.c.get_counts(), num_f)
+            parities = []
+            for i in range(1, num_points + 1):
+                counts = post_select_results(res[i].data.c.get_counts(), num_f)
+                total = sum(counts.values())
+                even = sum(c for b, c in counts.items() if b.count('1') % 2 == 0)
+                parities.append((2 * even - total) / total if total > 0 else 0)
+                
+            return z_counts, phases, parities
+
+    def _osc_func(self, phi, amplitude, offset):
+        """The theoretical oscillation function for an n-qubit GHZ state."""
+        return amplitude * np.cos(self.n * phi + offset)
+
+    def estimate_fidelity(self, results) -> float:
+        """Calculates fidelity based on the chosen method."""
+        if self.method == 'dfe':
+            z_counts, x_counts = results[0], results[1]
+            p = (z_counts.get("0"*self.n, 0) + z_counts.get("1"*self.n, 0)) / sum(z_counts.values())
+            even = sum(c for b, c in x_counts.items() if b.count('1') % 2 == 0)
+            c = (2 * even - sum(x_counts.values())) / sum(x_counts.values())
+            return (p + c) / 2
+
+        elif self.method == 'parity_oscillation':
+            z_counts, phases, parities = results
+            p = (z_counts.get("0"*self.n, 0) + z_counts.get("1"*self.n, 0)) / sum(z_counts.values())
+            popt, _ = curve_fit(self._osc_func, phases, parities, p0=[0.5, 0])
+            c = abs(popt[0])
+            return (p + c) / 2
+
+    def plot_oscillation(self, phases, parities, title="GHZ Parity Oscillation"):
         """
-        Calculates fidelity using the results from Z and X basis measurements.
-        
-        F = 0.5 * (Population + Coherence)
-        Population: Probability of being in |00...0> or |11...1>
-        Coherence: Expectation value of <X1 X2 ... Xn>
+        Plots the experimental parity points and the fitted curve.
         """
-        z_counts = results[0]
-        x_counts = results[1]
+        popt, _ = curve_fit(self._osc_func, phases, parities, p0=[0.5, 0])
         
-        total_z = sum(z_counts.values())
-        total_x = sum(x_counts.values())
-
-        # 1. Calculate Population
-        # For a GHZ state, we want only 00...0 and 11...1
-        target_0 = "0" * self.n
-        target_1 = "1" * self.n
-        population = (z_counts.get(target_0, 0) + z_counts.get(target_1, 0)) / total_z
-
-        # 2. Calculate Coherence
-        # <X...X> = (Number of even-parity bitstrings - Number of odd-parity bitstrings) / Total
-        even_parity_count = 0
-        for bitstring, count in x_counts.items():
-            if bitstring.count('1') % 2 == 0:
-                even_parity_count += count
+        plt.figure(figsize=(10, 6))
+        plt.scatter(phases, parities, color='black', label='Experimental Parity')
         
-        coherence = (2 * even_parity_count - total_x) / total_x
-
-        fidelity = (population + coherence) / 2
+        # Smooth curve for the fit
+        fine_phases = np.linspace(0, 2 * np.pi, 200)
+        plt.plot(fine_phases, self._osc_func(fine_phases, *popt), 
+                 color='red', linestyle='--', label=f'Fit (n={self.n})')
         
-        return fidelity
+        plt.xlabel(r"Phase $\phi$ (rad)") 
+        plt.ylabel(r"Global Parity $\langle P \rangle$") 
+        plt.title(f"{title}\nAmplitude = {abs(popt[0]):.4f}")
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        plt.show()
+
+    def _parity_oscillation_circuit(self, phi):
+        """Helper to create oscillation circuits."""
+        qc = self.ghz._initialize_circuit()
+        for q in self.ghz.data_qubits:
+            qc.rz(phi, self.ghz.layout_dict[q])
+            qc.h(self.ghz.layout_dict[q])
+        
+        data_idxs = [self.ghz.layout_dict[d] for d in self.ghz.data_qubits]
+        flag_idxs = [self.ghz.layout_dict[f] for f in self.ghz.flag_qubits]
+        qc.measure(data_idxs, range(len(data_idxs)))
+        qc.measure(flag_idxs, range(len(data_idxs), len(self.ghz.layout)))
+        return qc
