@@ -159,6 +159,8 @@ class GHZ:
         # Apply standard ZZ flags (for bit-flips) at the end as usual
         self._flag_operations(qc) 
 
+        qc = transpile(qc, optimization_level=1)
+
         return qc
 
     def _get_classical_registers(self) -> tuple:
@@ -168,6 +170,59 @@ class GHZ:
         flag_creg = list(range(data_creg[-1] + 1, data_creg[-1] + 1 + len(self.flag_qubits)))
 
         return data_creg, flag_creg
+
+    def _parity_oscillation_circuit(self, phi):
+        """Helper to create oscillation circuits."""
+        qc = self._initialize_circuit()
+        for q in self.data_qubits:
+            qc.rz(phi, self.layout_dict[q])
+            qc.h(self.layout_dict[q])
+        
+        data_idxs = [self.layout_dict[d] for d in self.data_qubits]
+        flag_idxs = [self.layout_dict[f] for f in self.flag_qubits]
+        qc.measure(data_idxs, range(len(data_idxs)))
+        qc.measure(flag_idxs, range(len(data_idxs), len(self.layout)))
+        return qc
+
+    def get_verification_circuits(self, method: str, phases: np.ndarray = None) -> list[QuantumCircuit]:
+        """
+        Generate verification circuits based on the chosen method.
+        
+        Args:
+            method (str): 'dfe' or 'parity_oscillation'
+            phases (np.ndarray): Array of phases for parity oscillation.
+            
+        Returns:
+            list[QuantumCircuit]: List of circuits to execute.
+        """
+        if method == 'dfe':
+            # 1. Z-basis
+            z_qc = self.circuit
+            
+            # 2. X-basis
+            x_qc = self._initialize_circuit()
+            for d in self.data_qubits: 
+                x_qc.h(self.layout_dict[d])
+                
+            # Maps
+            data_idxs = [self.layout_dict[d] for d in self.data_qubits]
+            flag_idxs = [self.layout_dict[f] for f in self.flag_qubits]
+            
+            x_qc.measure(data_idxs, range(len(data_idxs)))
+            x_qc.measure(flag_idxs, range(len(data_idxs), len(self.layout)))
+            
+            return [z_qc, x_qc]
+            
+        elif method == 'parity_oscillation':
+            if phases is None:
+                raise ValueError("phases required for parity_oscillation")
+                
+            z_qc = self.circuit
+            osc_circs = [self._parity_oscillation_circuit(p) for p in phases]
+            return [z_qc] + osc_circs
+            
+        else:
+            raise ValueError(f"Unknown verification method: {method}")
 
 
 def post_select_results(results, num_flag_qubits) -> dict:
@@ -197,85 +252,111 @@ def post_select_results(results, num_flag_qubits) -> dict:
     return post_selected_results
 
 class FidelityEstimator:
-    def __init__(self, ghz: GHZ, method: str = 'dfe'):
+    def __init__(self, n_data_qubits: int, method: str = 'dfe'):
         """
         Initializes the Fidelity Estimator.
         Methods: 'dfe' (Fast) or 'parity_oscillation' (Rigorous).
-        'dfe' - Direct Fidelity Estimation using Z and X basis measurements 
-                (this implementation works only with incoherent noise).
-        'parity_oscillation' - Measures parity oscillations by varying phase
-                (works under any noise model).
         """
-        self.ghz = ghz
+        self.n = n_data_qubits
         self.method = method
-        self.n = len(self.ghz.data_qubits)
-
-    def run_measurements(self, backend: Backend, shots: int, num_points=20):
-        """
-        Executes the required circuits based on the selected method.
-        """
-        num_f = len(self.ghz.flag_qubits)
-        
-        if self.method == 'dfe':
-            z_qc = self.ghz.circuit
-            x_qc = self.ghz._initialize_circuit()
-            for d in self.ghz.data_qubits: 
-                x_qc.h(self.ghz.layout_dict[d])
-            
-            # Map measurements for X-basis
-            data_idxs = [self.ghz.layout_dict[d] for d in self.ghz.data_qubits]
-            flag_idxs = [self.ghz.layout_dict[f] for f in self.ghz.flag_qubits]
-            x_qc.measure(data_idxs, range(len(data_idxs)))
-            x_qc.measure(flag_idxs, range(len(data_idxs), len(self.ghz.layout)))
-
-            res = SamplerV2(backend).run(transpile([z_qc, x_qc], backend), shots=shots).result()
-            return [post_select_results(res[i].data.c.get_counts(), num_f) for i in range(2)]
-
-        elif self.method == 'parity_oscillation':
-            phases = np.linspace(0, 2 * np.pi, num_points)
-            z_qc = self.ghz.circuit
-            osc_circs = [self._parity_oscillation_circuit(p) for p in phases]
-            
-            res = SamplerV2(backend).run(transpile([z_qc] + osc_circs, backend), shots=shots).result()
-            
-            z_counts = post_select_results(res[0].data.c.get_counts(), num_f)
-            parities = []
-            for i in range(1, num_points + 1):
-                counts = post_select_results(res[i].data.c.get_counts(), num_f)
-                total = sum(counts.values())
-                even = sum(c for b, c in counts.items() if b.count('1') % 2 == 0)
-                parities.append((2 * even - total) / total if total > 0 else 0)
-                
-            return z_counts, phases, parities
 
     def _osc_func(self, phi, amplitude, offset):
         """The theoretical oscillation function for an n-qubit GHZ state."""
         return amplitude * np.cos(self.n * phi + offset)
 
-    def estimate_fidelity(self, results) -> float:
-        """Calculates fidelity based on the chosen method."""
+    def estimate_coherence_dft(self, phases, parities):
+        """
+        Estimate coherence using Discrete Fourier Transform.
+        Ideally requires phases to cover [0, 2pi/N] uniformly (for one period).
+        Returns the amplitude of the N-th frequency component (normalized).
+        """
+        # Simple estimate: Compute |sum(parity * exp(-i * N * phi))| * 2 / NumPoints
+        # This is essentially the DFT component at frequency N.
+        # Amplitude C is 2 * |Fourier Coeff|.
+        
+        complex_sum = np.sum(np.array(parities) * np.exp(-1j * self.n * np.array(phases)))
+        coherence_dft = 2 * np.abs(complex_sum) / len(parities)
+        
+        # Note: This assumes points are distributed such that orthogonality holds roughly.
+        # If we scan [0, 2pi/N] with M points, orthogonality holds for DC vs fundamental.
+        return coherence_dft
+
+    def estimate_fidelity(self, results) -> tuple[float, float]:
+        """
+        Calculates population and coherence based on the chosen method.
+        
+        Returns:
+            tuple: (population, coherence, p_err, c_err, details_dict)
+        """
+        details = {}
         if self.method == 'dfe':
+            # Unpack results: can be (z_counts, x_counts) or (z_counts, x_counts, z_errs, x_errs)
             z_counts, x_counts = results[0], results[1]
-            p = (z_counts.get("0"*self.n, 0) + z_counts.get("1"*self.n, 0)) / sum(z_counts.values())
-            even = sum(c for b, c in x_counts.items() if b.count('1') % 2 == 0)
-            c = (2 * even - sum(x_counts.values())) / sum(x_counts.values())
-            return (p + c) / 2
+            
+            # Population
+            total_z = sum(z_counts.values())
+            p = (z_counts.get("0"*self.n, 0) + z_counts.get("1"*self.n, 0)) / total_z
+            p_err = np.sqrt(p * (1 - p) / total_z)
+
+            # Coherence
+            total_x = sum(x_counts.values())
+            even_x = sum(c for b, c in x_counts.items() if b.count('1') % 2 == 0)
+            c = (2 * even_x - total_x) / total_x
+            
+            # For DFE, c is simply the expectation value of parity <P_x>
+            # sigma_c = sqrt((1 - c^2) / N_x)
+            c_err = np.sqrt((1 - c**2) / total_x)
+
+            return p, c, p_err, c_err, details
 
         elif self.method == 'parity_oscillation':
-            z_counts, phases, parities = results
-            p = (z_counts.get("0"*self.n, 0) + z_counts.get("1"*self.n, 0)) / sum(z_counts.values())
-            popt, _ = curve_fit(self._osc_func, phases, parities, p0=[0.5, 0])
-            c = abs(popt[0])
-            return (p + c) / 2
+            # Unpack results: can be (z_counts, phases, parities) or (z_counts, phases, parities, errors)
+            if len(results) == 4:
+                z_counts, phases, parities, errors_c = results
+            else:
+                z_counts, phases, parities = results
+                errors_c = None
 
-    def plot_oscillation(self, phases, parities, title="GHZ Parity Oscillation"):
+            # Population
+            total_z = sum(z_counts.values())
+            p = (z_counts.get("0"*self.n, 0) + z_counts.get("1"*self.n, 0)) / total_z
+            p_err = np.sqrt(p * (1 - p) / total_z)
+            
+            # Weighted fit if errors are provided
+            sigma = errors_c if errors_c is not None else None
+            absolute_sigma = True if errors_c is not None else False
+            
+            try:
+                popt, pcov = curve_fit(self._osc_func, phases, parities, p0=[0.5, 0], sigma=sigma, absolute_sigma=absolute_sigma)
+                c = abs(popt[0])
+                offset = popt[1]
+                # c_err is the standard deviation of the amplitude parameter
+                c_err = np.sqrt(pcov[0, 0])
+                
+                details["offset"] = offset
+                details["fit_popt"] = popt
+            except Exception:
+                c = 0.0
+                c_err = 0.0
+                details["calc_error"] = "Fit failed"
+                
+            return p, c, p_err, c_err, details
+
+    def plot_oscillation(self, phases, parities, title="GHZ Parity Oscillation", save_path=None, errors=None):
         """
         Plots the experimental parity points and the fitted curve.
         """
-        popt, _ = curve_fit(self._osc_func, phases, parities, p0=[0.5, 0])
+        sigma = errors if errors is not None else None
+        absolute_sigma = True if errors is not None else False
+
+        popt, _ = curve_fit(self._osc_func, phases, parities, p0=[0.5, 0], sigma=sigma, absolute_sigma=absolute_sigma)
         
         plt.figure(figsize=(10, 6))
-        plt.scatter(phases, parities, color='black', label='Experimental Parity')
+        
+        if errors is not None:
+            plt.errorbar(phases, parities, yerr=errors, fmt='o', color='black', label='Experimental Parity', capsize=5)
+        else:
+            plt.scatter(phases, parities, color='black', label='Experimental Parity')
         
         # Smooth curve for the fit
         fine_phases = np.linspace(0, 2 * np.pi, 200)
@@ -287,17 +368,12 @@ class FidelityEstimator:
         plt.title(f"{title}\nAmplitude = {abs(popt[0]):.4f}")
         plt.legend()
         plt.grid(True, alpha=0.3)
-        plt.show()
-
-    def _parity_oscillation_circuit(self, phi):
-        """Helper to create oscillation circuits."""
-        qc = self.ghz._initialize_circuit()
-        for q in self.ghz.data_qubits:
-            qc.rz(phi, self.ghz.layout_dict[q])
-            qc.h(self.ghz.layout_dict[q])
         
-        data_idxs = [self.ghz.layout_dict[d] for d in self.ghz.data_qubits]
-        flag_idxs = [self.ghz.layout_dict[f] for f in self.ghz.flag_qubits]
-        qc.measure(data_idxs, range(len(data_idxs)))
-        qc.measure(flag_idxs, range(len(data_idxs), len(self.ghz.layout)))
-        return qc
+        if save_path:
+            plt.savefig(save_path)
+            plt.close()
+            print(f"Saved plot to {save_path}")
+        else:
+            plt.show()
+
+

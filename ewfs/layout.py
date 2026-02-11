@@ -431,9 +431,9 @@ def visualize_pair_selection_solution(root, selected_pairs, final_covered_ids, t
         if node_id in selected_leaf_ids:
             node_colors.append('tomato')  # Selected leaf
         elif node_id in lca_ids:
-            node_colors.append('gold') # LCA of a selected pair
+            node_colors.append('tomato') # LCA of a selected pair
         elif node_id in final_covered_ids:
-            node_colors.append('lightblue') # Covered by a path
+            node_colors.append('tomato') # Covered by a path
         else:
             node_colors.append('lightgray') # Uncovered
 
@@ -459,14 +459,15 @@ def visualize_pair_selection_solution(root, selected_pairs, final_covered_ids, t
     plt.figure(figsize=(16, 10))
     nx.draw(G, pos, labels=labels, with_labels=True, node_size=800, node_color=node_colors, edge_color=edge_colors, width=2.0, font_size=10)
     plt.title(title)
+    plt.savefig("pair_selection_visualization.png")
     plt.show()
 
 
 if __name__ == '__main__':
     # --- Configuration ---
     # Build a tree that is NOT complete
-    TOTAL_NODE_COUNT = 50 
-    NUM_PAIRS_TO_SELECT = 6
+    TOTAL_NODE_COUNT = 15 
+    NUM_PAIRS_TO_SELECT = 1
 
     # --- Script Execution ---
     root_node = build_tree_by_node_count(TOTAL_NODE_COUNT)
