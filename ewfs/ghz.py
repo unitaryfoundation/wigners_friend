@@ -1,14 +1,12 @@
-
 from collections import deque
 
 from qiskit import QuantumCircuit, transpile
-from qiskit.providers import Backend
 from qiskit.transpiler import CouplingMap
-from qiskit_ibm_runtime import SamplerV2
 
 import numpy as np
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
+
 
 class GHZ:
     def __init__(
@@ -16,8 +14,8 @@ class GHZ:
         coupling_map: CouplingMap,
         layout: list,
         flag_qubits: list,
-        xx_check: bool = False, # Toggle for XX check
-        root_flag_qubit: int = None # Specific ancilla for the XX check
+        xx_check: bool = False,  # Toggle for XX check
+        root_flag_qubit: int = None,  # Specific ancilla for the XX check
     ) -> None:
         """Initialize the GHZ class."""
         self.xx_check = xx_check
@@ -105,13 +103,13 @@ class GHZ:
         if not invert:
             # We reset flag_ops only if we aren't performing an Early XX check
             # or we manage the list carefully to avoid clearing the XX op.
-            
+
             # --- Standard ZZ Checks (Detects Bit-flips) ---
             for flag in self.flag_qubits:
                 # Skip the root flag if it was already used for the Early XX check
-                if self.xx_check and flag == self.root_flag_qubit: 
+                if self.xx_check and flag == self.root_flag_qubit:
                     continue
-                    
+
                 neighbors = self.coupling_map.neighbors(flag)
                 for qubit in neighbors:
                     if qubit in self.layout and qubit != self.root_flag_qubit:
@@ -137,17 +135,17 @@ class GHZ:
             # Create the initial Bell pair (Seed of the GHZ state)
             ctrl, target = self.ghz_ops[0]
             qc.cx(self.layout_dict[ctrl], self.layout_dict[target])
-            
+
             # XX check on the Bell pair while it is still a subsystem stabilizer
             f_idx = self.layout_dict[self.root_flag_qubit]
             d0_idx = self.layout_dict[ctrl]
             d1_idx = self.layout_dict[target]
-            
+
             qc.h(f_idx)
             qc.cx(f_idx, d0_idx)
             qc.cx(f_idx, d1_idx)
-            qc.h(f_idx) # Flag is now unentangled and contains the phase-error status
-            
+            qc.h(f_idx)  # Flag is now unentangled and contains the phase-error status
+
             # 3. Complete the rest of the BFS GHZ tree
             for op in self.ghz_ops[1:]:
                 qc.cx(self.layout_dict[op[0]], self.layout_dict[op[1]])
@@ -157,7 +155,7 @@ class GHZ:
 
         qc.barrier()
         # Apply standard ZZ flags (for bit-flips) at the end as usual
-        self._flag_operations(qc) 
+        self._flag_operations(qc)
 
         qc = transpile(qc, optimization_level=1)
 
@@ -177,7 +175,7 @@ class GHZ:
         for q in self.data_qubits:
             qc.rz(phi, self.layout_dict[q])
             qc.h(self.layout_dict[q])
-        
+
         data_idxs = [self.layout_dict[d] for d in self.data_qubits]
         flag_idxs = [self.layout_dict[f] for f in self.flag_qubits]
         qc.measure(data_idxs, range(len(data_idxs)))
@@ -187,40 +185,40 @@ class GHZ:
     def get_verification_circuits(self, method: str, phases: np.ndarray = None) -> list[QuantumCircuit]:
         """
         Generate verification circuits based on the chosen method.
-        
+
         Args:
             method (str): 'dfe' or 'parity_oscillation'
             phases (np.ndarray): Array of phases for parity oscillation.
-            
+
         Returns:
             list[QuantumCircuit]: List of circuits to execute.
         """
-        if method == 'dfe':
+        if method == "dfe":
             # 1. Z-basis
             z_qc = self.circuit
-            
+
             # 2. X-basis
             x_qc = self._initialize_circuit()
-            for d in self.data_qubits: 
+            for d in self.data_qubits:
                 x_qc.h(self.layout_dict[d])
-                
+
             # Maps
             data_idxs = [self.layout_dict[d] for d in self.data_qubits]
             flag_idxs = [self.layout_dict[f] for f in self.flag_qubits]
-            
+
             x_qc.measure(data_idxs, range(len(data_idxs)))
             x_qc.measure(flag_idxs, range(len(data_idxs), len(self.layout)))
-            
+
             return [z_qc, x_qc]
-            
-        elif method == 'parity_oscillation':
+
+        elif method == "parity_oscillation":
             if phases is None:
                 raise ValueError("phases required for parity_oscillation")
-                
+
             z_qc = self.circuit
             osc_circs = [self._parity_oscillation_circuit(p) for p in phases]
             return [z_qc] + osc_circs
-            
+
         else:
             raise ValueError(f"Unknown verification method: {method}")
 
@@ -228,7 +226,7 @@ class GHZ:
 def post_select_results(results, num_flag_qubits) -> dict:
     """
     Check the measurement outcomes of all flag qubits and post-select results.
-    
+
     Args:
         results (dict): The raw counts dictionary from the sampler.
         num_data_qubits (int): Number of qubits used for the GHZ state.
@@ -251,8 +249,9 @@ def post_select_results(results, num_flag_qubits) -> dict:
 
     return post_selected_results
 
+
 class FidelityEstimator:
-    def __init__(self, n_data_qubits: int, method: str = 'dfe'):
+    def __init__(self, n_data_qubits: int, method: str = "dfe"):
         """
         Initializes the Fidelity Estimator.
         Methods: 'dfe' (Fast) or 'parity_oscillation' (Rigorous).
@@ -273,10 +272,10 @@ class FidelityEstimator:
         # Simple estimate: Compute |sum(parity * exp(-i * N * phi))| * 2 / NumPoints
         # This is essentially the DFT component at frequency N.
         # Amplitude C is 2 * |Fourier Coeff|.
-        
+
         complex_sum = np.sum(np.array(parities) * np.exp(-1j * self.n * np.array(phases)))
         coherence_dft = 2 * np.abs(complex_sum) / len(parities)
-        
+
         # Note: This assumes points are distributed such that orthogonality holds roughly.
         # If we scan [0, 2pi/N] with M points, orthogonality holds for DC vs fundamental.
         return coherence_dft
@@ -284,32 +283,32 @@ class FidelityEstimator:
     def estimate_fidelity(self, results) -> tuple[float, float]:
         """
         Calculates population and coherence based on the chosen method.
-        
+
         Returns:
             tuple: (population, coherence, p_err, c_err, details_dict)
         """
         details = {}
-        if self.method == 'dfe':
+        if self.method == "dfe":
             # Unpack results: can be (z_counts, x_counts) or (z_counts, x_counts, z_errs, x_errs)
             z_counts, x_counts = results[0], results[1]
-            
+
             # Population
             total_z = sum(z_counts.values())
-            p = (z_counts.get("0"*self.n, 0) + z_counts.get("1"*self.n, 0)) / total_z
+            p = (z_counts.get("0" * self.n, 0) + z_counts.get("1" * self.n, 0)) / total_z
             p_err = np.sqrt(p * (1 - p) / total_z)
 
             # Coherence
             total_x = sum(x_counts.values())
-            even_x = sum(c for b, c in x_counts.items() if b.count('1') % 2 == 0)
+            even_x = sum(c for b, c in x_counts.items() if b.count("1") % 2 == 0)
             c = (2 * even_x - total_x) / total_x
-            
+
             # For DFE, c is simply the expectation value of parity <P_x>
             # sigma_c = sqrt((1 - c^2) / N_x)
             c_err = np.sqrt((1 - c**2) / total_x)
 
             return p, c, p_err, c_err, details
 
-        elif self.method == 'parity_oscillation':
+        elif self.method == "parity_oscillation":
             # Unpack results: can be (z_counts, phases, parities) or (z_counts, phases, parities, errors)
             if len(results) == 4:
                 z_counts, phases, parities, errors_c = results
@@ -319,27 +318,29 @@ class FidelityEstimator:
 
             # Population
             total_z = sum(z_counts.values())
-            p = (z_counts.get("0"*self.n, 0) + z_counts.get("1"*self.n, 0)) / total_z
+            p = (z_counts.get("0" * self.n, 0) + z_counts.get("1" * self.n, 0)) / total_z
             p_err = np.sqrt(p * (1 - p) / total_z)
-            
+
             # Weighted fit if errors are provided
             sigma = errors_c if errors_c is not None else None
             absolute_sigma = True if errors_c is not None else False
-            
+
             try:
-                popt, pcov = curve_fit(self._osc_func, phases, parities, p0=[0.5, 0], sigma=sigma, absolute_sigma=absolute_sigma)
+                popt, pcov = curve_fit(
+                    self._osc_func, phases, parities, p0=[0.5, 0], sigma=sigma, absolute_sigma=absolute_sigma
+                )
                 c = abs(popt[0])
                 offset = popt[1]
                 # c_err is the standard deviation of the amplitude parameter
                 c_err = np.sqrt(pcov[0, 0])
-                
+
                 details["offset"] = offset
                 details["fit_popt"] = popt
             except Exception:
                 c = 0.0
                 c_err = 0.0
                 details["calc_error"] = "Fit failed"
-                
+
             return p, c, p_err, c_err, details
 
     def plot_oscillation(self, phases, parities, title="GHZ Parity Oscillation", save_path=None, errors=None):
@@ -350,30 +351,29 @@ class FidelityEstimator:
         absolute_sigma = True if errors is not None else False
 
         popt, _ = curve_fit(self._osc_func, phases, parities, p0=[0.5, 0], sigma=sigma, absolute_sigma=absolute_sigma)
-        
+
         plt.figure(figsize=(10, 6))
-        
+
         if errors is not None:
-            plt.errorbar(phases, parities, yerr=errors, fmt='o', color='black', label='Experimental Parity', capsize=5)
+            plt.errorbar(phases, parities, yerr=errors, fmt="o", color="black", label="Experimental Parity", capsize=5)
         else:
-            plt.scatter(phases, parities, color='black', label='Experimental Parity')
-        
+            plt.scatter(phases, parities, color="black", label="Experimental Parity")
+
         # Smooth curve for the fit
         fine_phases = np.linspace(0, 2 * np.pi, 200)
-        plt.plot(fine_phases, self._osc_func(fine_phases, *popt), 
-                 color='red', linestyle='--', label=f'Fit (n={self.n})')
-        
-        plt.xlabel(r"Phase $\phi$ (rad)") 
-        plt.ylabel(r"Global Parity $\langle P \rangle$") 
+        plt.plot(
+            fine_phases, self._osc_func(fine_phases, *popt), color="red", linestyle="--", label=f"Fit (n={self.n})"
+        )
+
+        plt.xlabel(r"Phase $\phi$ (rad)")
+        plt.ylabel(r"Global Parity $\langle P \rangle$")
         plt.title(f"{title}\nAmplitude = {abs(popt[0]):.4f}")
         plt.legend()
         plt.grid(True, alpha=0.3)
-        
+
         if save_path:
             plt.savefig(save_path)
             plt.close()
             print(f"Saved plot to {save_path}")
         else:
             plt.show()
-
-
