@@ -169,7 +169,7 @@ class GHZ:
 
         return data_creg, flag_creg
 
-    def _parity_oscillation_circuit(self, phi):
+    def _parity_oscillation_circuit(self, phi: float) -> QuantumCircuit:
         """Helper to create oscillation circuits."""
         qc = self._initialize_circuit()
         for q in self.data_qubits:
