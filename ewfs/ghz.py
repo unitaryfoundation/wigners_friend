@@ -187,8 +187,8 @@ class GHZ:
         Generate verification circuits based on the chosen method.
 
         Args:
-            method (str): 'dfe' or 'parity_oscillation'
-            phases (np.ndarray): Array of phases for parity oscillation.
+            method: 'dfe' or 'parity_oscillation'
+            phases: Array of phases for parity oscillation.
 
         Returns:
             list[QuantumCircuit]: List of circuits to execute.
