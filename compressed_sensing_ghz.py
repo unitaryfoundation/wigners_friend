@@ -17,8 +17,8 @@ class CompressedSensingEstimator:
         Initializes the estimator.
 
         Args:
-            max_freq_candidate (int): Maximum frequency n to scan for.
-            lasso_alpha (float): Regularization strength for Lasso.
+            max_freq_candidate: Maximum frequency n to scan for.
+            lasso_alpha: Regularization strength for Lasso.
         """
         self.max_freq = max_freq_candidate
         self.alpha = lasso_alpha
