@@ -12,7 +12,7 @@ from ewfs.layout import (
 
 
 class CompressedSensingEstimator:
-    def __init__(self, max_freq_candidate=100, lasso_alpha=0.1):
+    def __init__(self, max_freq_candidate: int = 100, lasso_alpha: float = 0.1):
         """
         Initializes the estimator.
 
