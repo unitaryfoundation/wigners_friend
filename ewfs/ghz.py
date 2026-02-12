@@ -191,7 +191,7 @@ class GHZ:
             phases: Array of phases for parity oscillation.
 
         Returns:
-            list[QuantumCircuit]: List of circuits to execute.
+            List of circuits to execute.
         """
         if method == "dfe":
             # 1. Z-basis
