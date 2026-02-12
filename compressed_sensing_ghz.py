@@ -24,7 +24,7 @@ class CompressedSensingEstimator:
         self.alpha = lasso_alpha
         self.n_candidates = np.arange(1, self.max_freq + 1)
 
-    def fit(self, phases, signal_values):
+    def fit(self, phases: np.ndarray, signal_values: np.ndarray) -> dict:
         """
         Estimates the parameters (C, n, theta) from the given data.
 
