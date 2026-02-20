@@ -250,6 +250,174 @@ def post_select_results(results, num_flag_qubits) -> dict:
     return post_selected_results
 
 
+def generate_trex_twirled_circuit(
+    base_circuit: QuantumCircuit,
+    data_qubit_indices: list[int],
+    randomization_bitstring: np.ndarray,
+) -> QuantumCircuit:
+    """Insert X gates before measurements on data qubits per randomization_bitstring.
+
+    For each data qubit where randomization_bitstring[i] == 1, an X gate is
+    inserted immediately before the measurement. After execution, the classical
+    result bits on those qubits must be XOR-ed with the bitstring to undo the flip.
+
+    This works by separating the base circuit into pre-measurement operations and
+    measurement operations, then inserting X gates in between.
+
+    Args:
+        base_circuit: The original circuit (with measurements already appended).
+        data_qubit_indices: Qubit indices corresponding to data qubits.
+        randomization_bitstring: Binary array of length len(data_qubit_indices).
+
+    Returns:
+        A new QuantumCircuit with X gates inserted before measurements on the
+        selected data qubits.
+    """
+    if len(randomization_bitstring) != len(data_qubit_indices):
+        raise ValueError(
+            f"Bitstring length {len(randomization_bitstring)} != "
+            f"number of data qubits {len(data_qubit_indices)}"
+        )
+
+    # Separate non-measurement and measurement instructions
+    non_meas_ops = []
+    meas_ops = []
+    for inst in base_circuit.data:
+        if inst.operation.name == "measure":
+            meas_ops.append(inst)
+        else:
+            non_meas_ops.append(inst)
+
+    if not meas_ops:
+        raise ValueError("Circuit has no measurement instructions.")
+
+    # Rebuild circuit: non-meas ops -> X gates -> measurements
+    qc = QuantumCircuit(base_circuit.num_qubits, base_circuit.num_clbits)
+
+    for inst in non_meas_ops:
+        qc.append(inst)
+
+    # Insert X gates on selected data qubits
+    for bit_idx, qubit_idx in enumerate(data_qubit_indices):
+        if randomization_bitstring[bit_idx] == 1:
+            qc.x(qubit_idx)
+
+    # Re-append measurements
+    for inst in meas_ops:
+        qc.append(inst)
+
+    return qc
+
+
+def generate_trex_calibration_circuit(
+    num_qubits: int,
+    data_qubit_indices: list[int],
+    flag_qubit_indices: list[int],
+    randomization_bitstring: np.ndarray,
+) -> QuantumCircuit:
+    """Create a calibration circuit for TREX.
+
+    Prepares |0...0> on all qubits, applies X gates on data qubits according
+    to the randomization bitstring, then measures all qubits. After classical
+    XOR with the bitstring, the ideal result is all zeros; deviations measure
+    the readout error eigenvalue.
+
+    Args:
+        num_qubits: Total number of qubits in the circuit.
+        data_qubit_indices: Indices of data qubits.
+        flag_qubit_indices: Indices of flag qubits.
+        randomization_bitstring: Binary array of length len(data_qubit_indices).
+
+    Returns:
+        A calibration QuantumCircuit.
+    """
+    num_clbits = len(data_qubit_indices) + len(flag_qubit_indices)
+    qc = QuantumCircuit(num_qubits, num_clbits)
+
+    # Apply X gates on data qubits per randomization bitstring
+    for bit_idx, qubit_idx in enumerate(data_qubit_indices):
+        if randomization_bitstring[bit_idx] == 1:
+            qc.x(qubit_idx)
+
+    # Measure data qubits
+    qc.measure(data_qubit_indices, list(range(len(data_qubit_indices))))
+    # Measure flag qubits (they should all be 0)
+    qc.measure(
+        flag_qubit_indices,
+        list(range(len(data_qubit_indices), num_clbits)),
+    )
+
+    return qc
+
+
+def xor_counts_with_bitstring(
+    counts: dict, randomization_bitstring: np.ndarray, num_data_qubits: int, num_flag_qubits: int
+) -> dict:
+    """XOR the data-qubit portion of measurement outcomes with a bitstring.
+
+    Qiskit bitstring format: [flags][data] (higher registers on the left).
+    We XOR only the data portion (rightmost num_data_qubits bits) and leave
+    the flag portion unchanged.
+
+    Args:
+        counts: Raw measurement counts dict.
+        randomization_bitstring: Binary array of length num_data_qubits.
+        num_data_qubits: Number of data qubits.
+        num_flag_qubits: Number of flag qubits.
+
+    Returns:
+        New counts dict with data bits XOR-ed.
+    """
+    corrected_counts = {}
+    # Qiskit bitstrings are MSB-first: the leftmost character corresponds to
+    # the highest classical-bit index.  randomization_bitstring[i] corresponds
+    # to data_qubit_indices[i] (= classical bit i), so we must reverse it to
+    # align with the Qiskit string ordering.
+    flip_str = "".join(str(int(b)) for b in reversed(randomization_bitstring))
+
+    for bitstring, count in counts.items():
+        processed = bitstring.replace(" ", "")
+        flags_part = processed[:num_flag_qubits]
+        data_part = processed[num_flag_qubits:]
+
+        # XOR data bits (both strings are now MSB-first)
+        xored_data = "".join(
+            str(int(d) ^ int(f)) for d, f in zip(data_part, flip_str)
+        )
+        new_key = flags_part + xored_data
+        corrected_counts[new_key] = corrected_counts.get(new_key, 0) + count
+
+    return corrected_counts
+
+
+def compute_trex_corrected_parity(
+    raw_parities: list[float],
+    calibration_factors: list[float],
+) -> float:
+    """Compute TREX-corrected parity by dividing raw parity by calibration factor.
+
+    For each randomization, the corrected parity is:
+        parity_corrected = parity_raw / lambda
+
+    where lambda is the calibration factor (readout error eigenvalue).
+    The final result is the average over all randomizations.
+
+    Args:
+        raw_parities: Parity values from twirled circuits (one per randomization).
+        calibration_factors: Calibration eigenvalues (one per randomization).
+
+    Returns:
+        TREX-corrected parity value.
+    """
+    corrected = []
+    for p, lam in zip(raw_parities, calibration_factors):
+        if abs(lam) > 1e-10:
+            corrected.append(p / lam)
+        else:
+            corrected.append(p)
+    return float(np.mean(corrected))
+
+
 class FidelityEstimator:
     def __init__(self, n_data_qubits: int, method: str = "dfe"):
         """

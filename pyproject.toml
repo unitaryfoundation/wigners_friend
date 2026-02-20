@@ -18,6 +18,8 @@ dependencies = [
     "qiskit>=2.2.2,<3.0.0",
     "qnexus>=0.34.1,<1.0.0",
     "seaborn>=0.13.2,<0.14.0",
+    "mitiq>=0.42.0",
+    "scikit-learn>=1.5.0",
 ]
 
 [dependency-groups]

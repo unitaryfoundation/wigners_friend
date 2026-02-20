@@ -33,7 +33,7 @@ qnexus_password = os.getenv("QNEXUS_PASSWORD")
 if qnexus_email and qnexus_password:
     print("Authenticating with qNexus using credentials from .env...")
     try:
-        qnx.config.update_login(email=qnexus_email, password=qnexus_password)
+        qnx.auth._request_tokens(user=qnexus_email, pwd=qnexus_password)
         print("Authentication successful!")
     except Exception as e:
         print(f"Authentication failed: {e}")
